@@ -1,9 +1,10 @@
 from app import app
 from app import db, Reader, Book, Review, Annotation
 from flask import render_template, request, url_for, redirect
+from flask_login import login_required
 
 @app.route('/home')
-@app.route('/')
+@login_required
 def home():
   books = Book.query.all()
   return render_template('home.html', books = books)

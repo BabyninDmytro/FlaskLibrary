@@ -3,8 +3,10 @@ import os
 
 
 with app.app_context():
-  if os.path.exists('myDB.db'):
-    os.remove('myDB.db')
+  db_path = os.path.join(app.instance_path, 'myDB.db')
+  os.makedirs(app.instance_path, exist_ok=True)
+  if os.path.exists(db_path):
+    os.remove(db_path)
 
   db.create_all()
 
@@ -79,4 +81,3 @@ with app.app_context():
     db.session.rollback()
 
   db.session.close()
-
