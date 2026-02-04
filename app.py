@@ -1,7 +1,5 @@
 from datetime import datetime
-
-import os
-
+import os, logging
 from flask import Flask, flash, redirect, render_template, request, url_for
 from flask_login import LoginManager, UserMixin, login_required, login_user, logout_user
 from flask_sqlalchemy import SQLAlchemy
@@ -10,15 +8,26 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from wtforms import BooleanField, PasswordField, SelectField, StringField, SubmitField
 from wtforms.validators import DataRequired, Email, EqualTo
 
+
+logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s')
+
 base_dir = os.path.abspath(os.path.dirname(__file__))
 instance_dir = os.path.join(base_dir, 'instance')
 app = Flask(__name__, instance_relative_config=True, instance_path=instance_dir)
 app.config['SECRET_KEY'] = 'you-will-never-guess'
+
 os.makedirs(app.instance_path, exist_ok=True)
 db_path = os.path.join(app.instance_path, 'myDB.db')
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False #to supress warning
+
 db = SQLAlchemy(app)
+
+if os.path.exists(db_path):
+    logging.info('DB ' + db_path + 'is exists')
+else:
+    logging.info('DB ' + db_path + 'is not exists')
+
 login_manager = LoginManager()
 login_manager.login_view = 'login'
 login_manager.init_app(app)
@@ -125,15 +134,11 @@ def register():
         if existing_user:
             flash('Email already registered.', 'error')
         else:
-            reader = Reader(
-                name=form.name.data,
-                surname=form.surname.data,
-                email=form.email.data,
-                role=form.role.data,
-            )
+            reader = Reader(name=form.name.data, surname=form.surname.data, email=form.email.data, role=form.role.data)
             reader.set_password(form.password.data)
             db.session.add(reader)
             db.session.commit()
+            db.session.close()
             login_user(reader)
             return redirect(url_for('home'))
     return render_template('register.html', title='Register', form=form)
@@ -170,6 +175,4 @@ def reviews(review_id):
 
 
 if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()
     app.run(debug=True)
