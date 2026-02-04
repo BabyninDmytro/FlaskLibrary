@@ -1,11 +1,25 @@
-from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
-from flask import render_template, request, url_for, redirect
+from datetime import datetime
 
-app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///myDB.db'
+import os
+
+from flask import Flask, flash, redirect, render_template, request, url_for
+from flask_login import LoginManager, UserMixin, login_required, login_user, logout_user
+from flask_sqlalchemy import SQLAlchemy
+from flask_wtf import FlaskForm
+from werkzeug.security import check_password_hash, generate_password_hash
+from wtforms import BooleanField, PasswordField, SelectField, StringField, SubmitField
+from wtforms.validators import DataRequired, Email, EqualTo
+
+app = Flask(__name__, instance_relative_config=True)
+app.config['SECRET_KEY'] = 'you-will-never-guess'
+os.makedirs(app.instance_path, exist_ok=True)
+db_path = os.path.join(app.instance_path, 'myDB.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False #to supress warning
 db = SQLAlchemy(app)
+login_manager = LoginManager()
+login_manager.login_view = 'login'
+login_manager.init_app(app)
 
 #declaring the Book model
 class Book(db.Model):
@@ -22,16 +36,25 @@ class Book(db.Model):
         return "{} in: {},{}".format(self.id, self.month, self.year)
 
 #Add your columns for the Reader model here below.
-class Reader(db.Model):
+class Reader(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key = True)
     name = db.Column(db.String(50), index = True, unique = False)
     surname = db.Column(db.String(80), unique = False, index = True)
     email = db.Column(db.String(120), unique = True, index = True)
+    password_hash = db.Column(db.String(128))
+    role = db.Column(db.String(20), index=True, default='reader')
+    joined_at = db.Column(db.DateTime(), default=datetime.utcnow, index=True)
     reviews = db.relationship('Review', backref='reviewer', lazy = 'dynamic', cascade = "all, delete, delete-orphan")
     annotations = db.relationship('Annotation', backref='author', lazy='dynamic', cascade = "all, delete, delete-orphan")
     #get a nice printout for Reader objects
     def __repr__(self):
         return "Reader ID: {}, email: {}".format(self.id, self.email)
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
 
 #declaring the Review model
 class Review(db.Model):
@@ -54,11 +77,78 @@ class Annotation(db.Model):
     def __repr__(self):
         return '<Annotation {}-{}:{} >'.format(self.reviewer_id, self.book_id, self.text)
 
+class RegistrationForm(FlaskForm):
+    name = StringField('Name', validators=[DataRequired()])
+    surname = StringField('Surname', validators=[DataRequired()])
+    email = StringField('Email', validators=[DataRequired(), Email()])
+    role = SelectField(
+        'Role',
+        choices=[('reader', 'Reader'), ('librarian', 'Librarian')],
+        validators=[DataRequired()],
+    )
+    password = PasswordField('Password', validators=[DataRequired()])
+    password2 = PasswordField('Repeat Password', validators=[DataRequired(), EqualTo('password')])
+    submit = SubmitField('Register')
+
+
+class LoginForm(FlaskForm):
+    email = StringField('Email', validators=[DataRequired(), Email()])
+    password = PasswordField('Password', validators=[DataRequired()])
+    remember = BooleanField('Remember Me')
+    submit = SubmitField('Login')
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    return Reader.query.get(int(user_id))
+
+
+@app.route('/', methods=['GET', 'POST'])
+def login():
+    form = LoginForm()
+    if form.validate_on_submit():
+        user = Reader.query.filter_by(email=form.email.data).first()
+        if user and user.check_password(form.password.data):
+            login_user(user, remember=form.remember.data)
+            return redirect(url_for('home'))
+        flash('Invalid email or password.', 'error')
+    return render_template('login.html', form=form)
+
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    form = RegistrationForm()
+    if form.validate_on_submit():
+        existing_user = Reader.query.filter_by(email=form.email.data).first()
+        if existing_user:
+            flash('Email already registered.', 'error')
+        else:
+            reader = Reader(
+                name=form.name.data,
+                surname=form.surname.data,
+                email=form.email.data,
+                role=form.role.data,
+            )
+            reader.set_password(form.password.data)
+            db.session.add(reader)
+            db.session.commit()
+            login_user(reader)
+            return redirect(url_for('home'))
+    return render_template('register.html', title='Register', form=form)
+
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('login'))
+
+
 @app.route('/home')
-@app.route('/')
+@login_required
 def home():
-  books = Book.query.all()
-  return render_template('home.html', books = books)
+    books = Book.query.all()
+    return render_template('home.html', books = books)
 
 @app.route('/profile/<int:user_id>')
 def profile(user_id):
@@ -78,5 +168,6 @@ def reviews(review_id):
 
 
 if __name__ == "__main__":
+    with app.app_context():
+        db.create_all()
     app.run(debug=True)
-
