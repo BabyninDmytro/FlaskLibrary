@@ -100,7 +100,7 @@ class LoginForm(FlaskForm):
 
 @login_manager.user_loader
 def load_user(user_id):
-    return Reader.query.get(int(user_id))
+    return db.session.get(Reader, int(user_id))
 
 
 @app.route('/', methods=['GET', 'POST'])
