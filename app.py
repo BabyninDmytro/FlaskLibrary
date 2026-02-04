@@ -10,7 +10,9 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from wtforms import BooleanField, PasswordField, SelectField, StringField, SubmitField
 from wtforms.validators import DataRequired, Email, EqualTo
 
-app = Flask(__name__, instance_relative_config=True)
+base_dir = os.path.abspath(os.path.dirname(__file__))
+instance_dir = os.path.join(base_dir, 'instance')
+app = Flask(__name__, instance_relative_config=True, instance_path=instance_dir)
 app.config['SECRET_KEY'] = 'you-will-never-guess'
 os.makedirs(app.instance_path, exist_ok=True)
 db_path = os.path.join(app.instance_path, 'myDB.db')
