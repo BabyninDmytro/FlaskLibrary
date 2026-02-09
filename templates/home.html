@@ -24,12 +24,18 @@
     }
 
     .page-header {
+<<<<<<< codex/refactor-login.html-for-better-design-0cw89w
+      position: relative;
+      margin-bottom: 28px;
+      padding-right: 100px;
+=======
       display: flex;
       flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
       margin-bottom: 28px;
+>>>>>>> master
     }
 
     .page-header h1 {
@@ -48,6 +54,15 @@
       text-decoration: underline;
     }
 
+<<<<<<< codex/refactor-login.html-for-better-design-0cw89w
+    .logout-link {
+      position: absolute;
+      top: 0;
+      right: 0;
+    }
+
+=======
+>>>>>>> master
     .section-title {
       margin: 0 0 16px;
       font-size: 20px;
@@ -89,7 +104,11 @@
   <main class="page">
     <header class="page-header">
       <h1>Welcome to your favorite Book Club!</h1>
+<<<<<<< codex/refactor-login.html-for-better-design-0cw89w
+      <a class="nav-link logout-link" href="{{ url_for('logout') }}">Logout</a>
+=======
       <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+>>>>>>> master
     </header>
 
     <h2 class="section-title">All the suggested books we have so far</h2>
