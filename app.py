@@ -172,6 +172,11 @@ def reviews(review_id):
    review = Review.query.filter_by(id = review_id).first_or_404(description = "There is no user with this ID.")
    return render_template('_review.html', review = review)
 
+@app.route('/book/<int:book_id>')
+def book(book_id):
+   book = Book.query.filter_by(id = book_id).first_or_404(description = "There is no book with this ID.")
+   return render_template('book.html', book = book)
+
 
 
 if __name__ == "__main__":

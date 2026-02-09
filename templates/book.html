@@ -1,0 +1,16 @@
+<html>
+    <head>
+        <title>{{ book.title }}</title>
+    </head>
+    <body>
+        <h1>{{ book.title }}</h1>
+        <p>by {{ book.author_name }} {{ book.author_surname }}</p>
+        <p>Suggested in {{ book.month }}, {{ book.year }}</p>
+        <h2>Reviews</h2>
+        {% for review in book.reviews %}
+            {% include '_review.html' %}
+        {% else %}
+            <p>No reviews yet for this book.</p>
+        {% endfor %}
+    </body>
+</html>
