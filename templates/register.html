@@ -1,58 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <h1>Register Here</h1>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at top, #f9fbff, #e7edf6 45%, #dfe7f3 100%);
+      color: #1c2434;
+    }
+
+    .register-card {
+      width: min(90vw, 520px);
+      background: #ffffff;
+      border-radius: 20px;
+      padding: 32px 36px 28px;
+      box-shadow: 0 24px 60px rgba(17, 24, 39, 0.14);
+    }
+
+    .register-card h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      color: #1f2a44;
+    }
+
+    .register-card p {
+      margin: 0 0 18px;
+      color: #566075;
+    }
+
+    .register-card a {
+      color: #2b6cb0;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .register-card a:hover {
+      text-decoration: underline;
+    }
+
+    .messages {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 16px;
+    }
+
+    .messages li {
+      background: #fff1f2;
+      color: #b42318;
+      border: 1px solid #fbc4c4;
+      padding: 10px 12px;
+      border-radius: 10px;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    .field-group {
+      margin-bottom: 18px;
+    }
+
+    .field-group label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 600;
+      color: #2b3648;
+    }
+
+    .field-group input,
+    .field-group select {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid #d4d9e3;
+      font-size: 15px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .field-group input:focus,
+    .field-group select:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+    }
+
+    .field-error {
+      display: block;
+      margin-top: 6px;
+      color: #b42318;
+      font-size: 13px;
+    }
+
+    .actions {
+      margin-top: 8px;
+    }
+
+    .actions input[type="submit"] {
+      width: 100%;
+      border: none;
+      background: linear-gradient(135deg, #2b6cb0, #3b82f6);
+      color: #fff;
+      padding: 12px;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .actions input[type="submit"]:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);
+    }
+  </style>
 </head>
-<br>
 <body>
-    <h2><a href="{{ url_for('login') }}">Sign Up</a></h2>
-    <br>
+  <main class="register-card">
+    <h1>Create your account</h1>
+    <p>Already registered? <a href="{{ url_for('login') }}">Sign in</a></p>
+
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
-        <ul>
+        <ul class="messages">
           {% for category, message in messages %}
-            <li style="color: red;">{{ message }}</li>
+            <li>{{ message }}</li>
           {% endfor %}
         </ul>
       {% endif %}
     {% endwith %}
+
     <form action="" method="post">
-        {{ form.hidden_tag() }}
-        <p>
-            {{ form.name(size=32,placeholder="name") }}<br>
-            {% for error in form.name.errors %}
-            <span style="color: red;">[{{ error }}]</span>
-            {% endfor %}
-        </p>
-        <p>
-            {{ form.surname(size=32,placeholder="surname") }}<br>
-            {% for error in form.surname.errors %}
-            <span style="color: red;">[{{ error }}]</span>
-            {% endfor %}
-        </p>
-        <p>
-            {{ form.email(size=32,placeholder="email@gmail.com") }}<br>
-            {% for error in form.email.errors %}
-            <span style="color: red;">[{{ error }}]</span>
-            {% endfor %}
-        </p>
-        <p>
-            {{ form.role.label }}<br>
-            {{ form.role() }}<br>
-            {% for error in form.role.errors %}
-            <span style="color: red;">[{{ error }}]</span>
-            {% endfor %}
-        </p>
-        <p>
-            {{ form.password(size=32,placeholder="password*$%!@") }}<br>
-            {% for error in form.password.errors %}
-            <span style="color: red;">[{{ error }}]</span>
-            {% endfor %}
-        </p>
-        <p>
-            {{ form.password2(size=32,placeholder="password*$%!@") }}<br>
-            {% for error in form.password2.errors %}
-            <span style="color: red;">[{{ error }}]</span>
-            {% endfor %}
-        </p>
-        <p>{{ form.submit() }}</p>
+      {{ form.hidden_tag() }}
+      <div class="field-group">
+        {{ form.name.label }}
+        {{ form.name(size=32, placeholder="Name") }}
+        {% for error in form.name.errors %}
+          <span class="field-error">{{ error }}</span>
+        {% endfor %}
+      </div>
+      <div class="field-group">
+        {{ form.surname.label }}
+        {{ form.surname(size=32, placeholder="Surname") }}
+        {% for error in form.surname.errors %}
+          <span class="field-error">{{ error }}</span>
+        {% endfor %}
+      </div>
+      <div class="field-group">
+        {{ form.email.label }}
+        {{ form.email(size=32, placeholder="email@gmail.com") }}
+        {% for error in form.email.errors %}
+          <span class="field-error">{{ error }}</span>
+        {% endfor %}
+      </div>
+      <div class="field-group">
+        {{ form.role.label }}
+        {{ form.role() }}
+        {% for error in form.role.errors %}
+          <span class="field-error">{{ error }}</span>
+        {% endfor %}
+      </div>
+      <div class="field-group">
+        {{ form.password.label }}
+        {{ form.password(size=32, placeholder="password*$%!@") }}
+        {% for error in form.password.errors %}
+          <span class="field-error">{{ error }}</span>
+        {% endfor %}
+      </div>
+      <div class="field-group">
+        {{ form.password2.label }}
+        {{ form.password2(size=32, placeholder="password*$%!@") }}
+        {% for error in form.password2.errors %}
+          <span class="field-error">{{ error }}</span>
+        {% endfor %}
+      </div>
+      <div class="actions">
+        {{ form.submit() }}
+      </div>
     </form>
+  </main>
 </body>
+</html>
