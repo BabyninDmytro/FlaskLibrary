@@ -135,7 +135,7 @@
 <body>
   <main class="login-card">
     <h1>Sign In</h1>
-    <p>New User? <a href="{{ url_for('register') }}">Click to Register!</a></p>
+    <p>New User? <a href="{{ url_for('main.register') }}">Click to Register!</a></p>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}

@@ -104,13 +104,13 @@
   <main class="page">
     <header class="page-header">
       <h1>Books selected for {{ year }}</h1>
-      <a class="nav-link" href="{{ url_for('home') }}">Back to home</a>
+      <a class="nav-link" href="{{ url_for('main.home') }}">Back to home</a>
     </header>
 
     <ul class="book-list">
       {% for book in books %}
         <li class="book-card">
-          <a href="{{ url_for('book', book_id=book.id) }}">{{ book.title }}</a>
+          <a href="{{ url_for('main.book', book_id=book.id) }}">{{ book.title }}</a>
           <div class="review-list">
             {% for review in book.reviews %}
               {% include '_review.html' %}

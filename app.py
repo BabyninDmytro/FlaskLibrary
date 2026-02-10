@@ -25,18 +25,18 @@ if os.path.exists(db_path):
 else:
     logging.info('DB ' + db_path + 'is not exists')
 
-login_manager.login_view = 'login'
+login_manager.login_view = 'main.login'
 login_manager.init_app(app)
 
 from models import Reader  # noqa: E402
+from routes import bp  # noqa: E402
+
+app.register_blueprint(bp)
 
 
 @login_manager.user_loader
 def load_user(user_id):
     return db.session.get(Reader, int(user_id))
-
-
-import routes  # noqa: E402,F401
 
 
 if __name__ == "__main__":
