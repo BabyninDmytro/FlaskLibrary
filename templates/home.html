@@ -92,14 +92,14 @@
   <main class="page">
     <header class="page-header">
       <h1>Welcome to your favorite Book Club!</h1>
-      <a class="nav-link logout-link" href="{{ url_for('logout') }}">Logout</a>
+      <a class="nav-link logout-link" href="{{ url_for('main.logout') }}">Logout</a>
     </header>
 
     <h2 class="section-title">All the suggested books we have so far</h2>
     <ul class="book-list">
       {% for book in books %}
         <li class="book-card">
-          <a href="{{ url_for('book', book_id=book.id) }}">{{ book.title }}</a>
+          <a href="{{ url_for('main.book', book_id=book.id) }}">{{ book.title }}</a>
           <p class="book-meta">
             by {{ book.author_name }} {{ book.author_surname }} · Suggested in {{ book.month }}, {{ book.year }}
           </p>
