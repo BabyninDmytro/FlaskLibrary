@@ -23,7 +23,7 @@ def login():
 
 
 @bp.route('/register', methods=['GET', 'POST'])
-def register():
+def ():
     form = RegistrationForm()
     if form.validate_on_submit():
         existing_user = Reader.query.filter_by(email=form.email.data).first()
@@ -34,8 +34,8 @@ def register():
             reader.set_password(form.password.data)
             db.session.add(reader)
             db.session.commit()
-            db.session.close()
             login_user(reader)
+            db.session.close()
             return redirect(url_for('main.home'))
     return render_template('register.html', title='Register', form=form)
 
