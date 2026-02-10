@@ -2,8 +2,8 @@ import logging
 import os
 
 from flask import Flask
-from flask_login import LoginManager
-from flask_sqlalchemy import SQLAlchemy
+
+from extensions import db, login_manager
 
 
 logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s')
@@ -18,14 +18,13 @@ db_path = os.path.join(app.instance_path, 'myDB.db')
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-db = SQLAlchemy(app)
+db.init_app(app)
 
 if os.path.exists(db_path):
     logging.info('DB ' + db_path + 'is exists')
 else:
     logging.info('DB ' + db_path + 'is not exists')
 
-login_manager = LoginManager()
 login_manager.login_view = 'login'
 login_manager.init_app(app)
 
