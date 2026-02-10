@@ -1,6 +1,6 @@
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import login_required, login_user, logout_user
-from sqlalchemy import or_
+from sqlalchemy import String, and_, cast, or_
 
 from extensions import db
 from forms import LoginForm, RegistrationForm
@@ -50,39 +50,33 @@ def logout():
 @bp.route('/home')
 @login_required
 def home():
-    title = request.args.get('title', '').strip()
-    author = request.args.get('author', '').strip()
-    year = request.args.get('year', '').strip()
-    month = request.args.get('month', '').strip()
+    search_query = request.args.get('q', '').strip()
+    page = request.args.get('page', 1, type=int)
 
     query = Book.query
 
-    if title:
-        query = query.filter(Book.title.ilike(f'%{title}%'))
+    if search_query:
+        terms = [term for term in search_query.split() if term]
+        term_filters = []
 
-    if author:
-        query = query.filter(
-            or_(
-                Book.author_name.ilike(f'%{author}%'),
-                Book.author_surname.ilike(f'%{author}%'),
+        for term in terms:
+            lookup = f'%{term}%'
+            term_filters.append(
+                or_(
+                    Book.title.ilike(lookup),
+                    Book.author_name.ilike(lookup),
+                    Book.author_surname.ilike(lookup),
+                    Book.month.ilike(lookup),
+                    cast(Book.year, String).ilike(lookup),
+                )
             )
-        )
 
-    if year.isdigit():
-        query = query.filter(Book.year == int(year))
+        if term_filters:
+            query = query.filter(and_(*term_filters))
 
-    if month:
-        query = query.filter(Book.month.ilike(f'%{month}%'))
+    books = query.order_by(Book.year.desc(), Book.month.asc(), Book.title.asc()).paginate(page=page, per_page=10, error_out=False)
 
-    books = query.order_by(Book.year.desc(), Book.month.asc(), Book.title.asc()).all()
-
-    filters = {
-        'title': title,
-        'author': author,
-        'year': year,
-        'month': month,
-    }
-    return render_template('home.html', books=books, filters=filters)
+    return render_template('home.html', books=books, search_query=search_query)
 
 
 @bp.route('/profile/<int:user_id>')

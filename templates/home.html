@@ -66,28 +66,23 @@
     }
 
     .search-form {
-      display: grid;
-      gap: 12px;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      align-items: end;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
     }
 
     .search-field {
-      display: grid;
-      gap: 6px;
-    }
-
-    .search-field label {
-      font-size: 14px;
-      color: #3f4a5f;
-      font-weight: 600;
+      flex: 1 1 280px;
     }
 
     .search-field input {
+      width: 100%;
       border: 1px solid #ccd7ea;
       border-radius: 10px;
       padding: 10px 12px;
       font-size: 14px;
+      box-sizing: border-box;
     }
 
     .search-actions {
@@ -114,6 +109,44 @@
     .btn-secondary {
       background: #e7edf6;
       color: #2b3648;
+    }
+
+    .search-hint {
+      margin: 10px 0 0;
+      color: #566075;
+      font-size: 13px;
+    }
+
+    .pagination {
+      margin-top: 20px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .pagination .page-link {
+      padding: 8px 12px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 600;
+      background: #e7edf6;
+      color: #2b3648;
+      border: 1px solid transparent;
+    }
+
+    .pagination .page-link:hover {
+      border-color: #c7d3e7;
+    }
+
+    .pagination .page-link.active {
+      background: #2b6cb0;
+      color: #ffffff;
+    }
+
+    .pagination .page-link.disabled {
+      opacity: 0.45;
+      pointer-events: none;
     }
 
     .book-list {
@@ -157,23 +190,13 @@
     <section class="search-card">
       <form class="search-form" method="get" action="{{ url_for('main.home') }}">
         <div class="search-field">
-          <label for="title">Book title</label>
-          <input id="title" name="title" type="text" value="{{ filters.title }}" placeholder="e.g. Dune">
-        </div>
-
-        <div class="search-field">
-          <label for="author">Author name / surname</label>
-          <input id="author" name="author" type="text" value="{{ filters.author }}" placeholder="e.g. Asimov">
-        </div>
-
-        <div class="search-field">
-          <label for="year">Year</label>
-          <input id="year" name="year" type="number" min="0" value="{{ filters.year }}" placeholder="e.g. 2024">
-        </div>
-
-        <div class="search-field">
-          <label for="month">Month</label>
-          <input id="month" name="month" type="text" value="{{ filters.month }}" placeholder="e.g. June">
+          <input
+            id="q"
+            name="q"
+            type="text"
+            value="{{ search_query }}"
+            placeholder="Search by title, author, month, or year (for example: dune herbert 1965)"
+          >
         </div>
 
         <div class="search-actions">
@@ -181,11 +204,12 @@
           <a class="btn btn-secondary" href="{{ url_for('main.home') }}">Reset</a>
         </div>
       </form>
+      <p class="search-hint">Tip: the query is split into words, and each word is searched across title, author, month, and year.</p>
     </section>
 
     <h2 class="section-title">All the suggested books we have so far</h2>
     <ul class="book-list">
-      {% for book in books %}
+      {% for book in books.items %}
         <li class="book-card">
           <a href="{{ url_for('main.book', book_id=book.id) }}">{{ book.title }}</a>
           <p class="book-meta">
@@ -193,9 +217,37 @@
           </p>
         </li>
       {% else %}
-        <li class="book-card">No books found for your current filters.</li>
+        <li class="book-card">No books found for your current search.</li>
       {% endfor %}
     </ul>
+
+    {% if books.pages > 1 %}
+      <nav class="pagination" aria-label="Books pages">
+        {% if books.has_prev %}
+          <a class="page-link" href="{{ url_for('main.home', q=search_query, page=books.prev_num) }}">← Prev</a>
+        {% else %}
+          <span class="page-link disabled">← Prev</span>
+        {% endif %}
+
+        {% for page_num in books.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+          {% if page_num %}
+            {% if page_num == books.page %}
+              <span class="page-link active">{{ page_num }}</span>
+            {% else %}
+              <a class="page-link" href="{{ url_for('main.home', q=search_query, page=page_num) }}">{{ page_num }}</a>
+            {% endif %}
+          {% else %}
+            <span class="page-link disabled">…</span>
+          {% endif %}
+        {% endfor %}
+
+        {% if books.has_next %}
+          <a class="page-link" href="{{ url_for('main.home', q=search_query, page=books.next_num) }}">Next →</a>
+        {% else %}
+          <span class="page-link disabled">Next →</span>
+        {% endif %}
+      </nav>
+    {% endif %}
   </main>
 </body>
 </html>
