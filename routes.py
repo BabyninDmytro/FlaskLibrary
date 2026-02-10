@@ -1,5 +1,5 @@
 from flask import Blueprint, flash, redirect, render_template, request, url_for
-from flask_login import login_required, login_user, logout_user
+from flask_login import current_user, login_required, login_user, logout_user
 from sqlalchemy import String, and_, cast, or_
 
 from extensions import db
@@ -10,8 +10,20 @@ from models import Book, Reader, Review
 bp = Blueprint('main', __name__)
 
 
-@bp.route('/', methods=['GET', 'POST'])
+
+@bp.route('/', methods=['GET'])
+def init():
+    if current_user.is_authenticated:
+        return redirect(url_for('main.home'))
+
+    return redirect(url_for('main.login'))
+
+
+@bp.route('/login', methods=['GET', 'POST'])
 def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('main.home'))
+
     form = LoginForm()
     if form.validate_on_submit():
         user = Reader.query.filter_by(email=form.email.data).first()
@@ -23,7 +35,7 @@ def login():
 
 
 @bp.route('/register', methods=['GET', 'POST'])
-def ():
+def register():
     form = RegistrationForm()
     if form.validate_on_submit():
         existing_user = Reader.query.filter_by(email=form.email.data).first()
