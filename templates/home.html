@@ -57,6 +57,65 @@
       color: #2b3648;
     }
 
+    .search-card {
+      background: #ffffff;
+      border-radius: 18px;
+      padding: 18px 20px;
+      margin-bottom: 22px;
+      box-shadow: 0 18px 40px rgba(17, 24, 39, 0.12);
+    }
+
+    .search-form {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      align-items: end;
+    }
+
+    .search-field {
+      display: grid;
+      gap: 6px;
+    }
+
+    .search-field label {
+      font-size: 14px;
+      color: #3f4a5f;
+      font-weight: 600;
+    }
+
+    .search-field input {
+      border: 1px solid #ccd7ea;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 14px;
+    }
+
+    .search-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      font-size: 14px;
+    }
+
+    .btn-primary {
+      background: #2b6cb0;
+      color: #ffffff;
+    }
+
+    .btn-secondary {
+      background: #e7edf6;
+      color: #2b3648;
+    }
+
     .book-list {
       list-style: none;
       padding: 0;
@@ -95,6 +154,35 @@
       <a class="nav-link logout-link" href="{{ url_for('main.logout') }}">Logout</a>
     </header>
 
+    <section class="search-card">
+      <form class="search-form" method="get" action="{{ url_for('main.home') }}">
+        <div class="search-field">
+          <label for="title">Book title</label>
+          <input id="title" name="title" type="text" value="{{ filters.title }}" placeholder="e.g. Dune">
+        </div>
+
+        <div class="search-field">
+          <label for="author">Author name / surname</label>
+          <input id="author" name="author" type="text" value="{{ filters.author }}" placeholder="e.g. Asimov">
+        </div>
+
+        <div class="search-field">
+          <label for="year">Year</label>
+          <input id="year" name="year" type="number" min="0" value="{{ filters.year }}" placeholder="e.g. 2024">
+        </div>
+
+        <div class="search-field">
+          <label for="month">Month</label>
+          <input id="month" name="month" type="text" value="{{ filters.month }}" placeholder="e.g. June">
+        </div>
+
+        <div class="search-actions">
+          <button class="btn btn-primary" type="submit">Search</button>
+          <a class="btn btn-secondary" href="{{ url_for('main.home') }}">Reset</a>
+        </div>
+      </form>
+    </section>
+
     <h2 class="section-title">All the suggested books we have so far</h2>
     <ul class="book-list">
       {% for book in books %}
@@ -104,6 +192,8 @@
             by {{ book.author_name }} {{ book.author_surname }} · Suggested in {{ book.month }}, {{ book.year }}
           </p>
         </li>
+      {% else %}
+        <li class="book-card">No books found for your current filters.</li>
       {% endfor %}
     </ul>
   </main>

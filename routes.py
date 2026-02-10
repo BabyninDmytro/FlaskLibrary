@@ -1,5 +1,6 @@
-from flask import Blueprint, flash, redirect, render_template, url_for
+from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import login_required, login_user, logout_user
+from sqlalchemy import or_
 
 from extensions import db
 from forms import LoginForm, RegistrationForm
@@ -49,8 +50,39 @@ def logout():
 @bp.route('/home')
 @login_required
 def home():
-    books = Book.query.all()
-    return render_template('home.html', books=books)
+    title = request.args.get('title', '').strip()
+    author = request.args.get('author', '').strip()
+    year = request.args.get('year', '').strip()
+    month = request.args.get('month', '').strip()
+
+    query = Book.query
+
+    if title:
+        query = query.filter(Book.title.ilike(f'%{title}%'))
+
+    if author:
+        query = query.filter(
+            or_(
+                Book.author_name.ilike(f'%{author}%'),
+                Book.author_surname.ilike(f'%{author}%'),
+            )
+        )
+
+    if year.isdigit():
+        query = query.filter(Book.year == int(year))
+
+    if month:
+        query = query.filter(Book.month.ilike(f'%{month}%'))
+
+    books = query.order_by(Book.year.desc(), Book.month.asc(), Book.title.asc()).all()
+
+    filters = {
+        'title': title,
+        'author': author,
+        'year': year,
+        'month': month,
+    }
+    return render_template('home.html', books=books, filters=filters)
 
 
 @bp.route('/profile/<int:user_id>')
