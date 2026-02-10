@@ -1,4 +1,5 @@
-from app import app, db, Book, Reader, Review, Annotation
+from app import app, db
+from models import Annotation, Book, Reader, Review
 import os
 
 
