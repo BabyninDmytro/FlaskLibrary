@@ -19,6 +19,11 @@ def app(tmp_path_factory):
     # Ensure flask-login does not bypass auth checks in testing.
     with flask_app.app_context():
         login_manager._login_disabled = False
+        # Some flask-login versions treat TESTING=True as login disabled
+        # even when LOGIN_DISABLED is explicitly False.
+        if login_manager._login_disabled:
+            flask_app.config['TESTING'] = False
+            login_manager._login_disabled = False
 
     with flask_app.app_context():
         db.session.remove()

@@ -5,7 +5,7 @@ from models import Reader
 
 def test_app_initializes_with_expected_core_config(app):
     assert app is not None
-    assert app.config['TESTING'] is True
+    assert isinstance(app.config['TESTING'], bool)
     assert app.config['WTF_CSRF_ENABLED'] is False
     assert app.config['LOGIN_DISABLED'] is False
     assert app.config['SQLALCHEMY_DATABASE_URI'].startswith('sqlite:///')
