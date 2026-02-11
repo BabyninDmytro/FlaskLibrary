@@ -11,6 +11,7 @@ def app(tmp_path_factory):
 
     flask_app.config.update(
         TESTING=True,
+        LOGIN_DISABLED=False,
         WTF_CSRF_ENABLED=False,
         SQLALCHEMY_DATABASE_URI=f"sqlite:///{db_file}",
     )
