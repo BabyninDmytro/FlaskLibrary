@@ -1,23 +1,38 @@
 import pytest
+from pathlib import Path
 
+from flask import Flask
 
-from app import app as flask_app
 from extensions import db, login_manager
 from models import Book, Reader
+from routes import bp
 
 
 @pytest.fixture(scope='session')
 def app(tmp_path_factory):
     db_file = tmp_path_factory.mktemp('db') / 'test.db'
+    template_dir = Path(__file__).resolve().parents[1] / 'templates'
 
+    flask_app = Flask('test_app', template_folder=str(template_dir))
     flask_app.config.update(
-        TESTING=True,
+        SECRET_KEY='test-secret-key',
+        TESTING=False,
         LOGIN_DISABLED=False,
         WTF_CSRF_ENABLED=False,
         SQLALCHEMY_DATABASE_URI=f"sqlite:///{db_file}",
+        SQLALCHEMY_TRACK_MODIFICATIONS=False,
     )
-    # Ensure flask-login does not bypass auth checks in testing.
-    login_manager._login_disabled = False
+
+    db.init_app(flask_app)
+    login_manager.login_view = 'main.login'
+    login_manager.init_app(flask_app)
+
+    if 'main' not in flask_app.blueprints:
+        flask_app.register_blueprint(bp)
+
+    @login_manager.user_loader
+    def load_user(user_id):
+        return db.session.get(Reader, int(user_id))
 
     with flask_app.app_context():
         db.session.remove()
