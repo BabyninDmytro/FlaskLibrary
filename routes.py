@@ -62,7 +62,7 @@ def logout():
 @bp.route('/home')
 @login_required
 def home():
-    search_query = request.args.get('q', '').strip()
+    search_query = request.args.get('search', '').strip()
     page = request.args.get('page', 1, type=int)
 
     query = Book.query
