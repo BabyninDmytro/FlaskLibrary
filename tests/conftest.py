@@ -17,7 +17,8 @@ def app(tmp_path_factory):
         SQLALCHEMY_DATABASE_URI=f"sqlite:///{db_file}",
     )
     # Ensure flask-login does not bypass auth checks in testing.
-    login_manager._login_disabled = False
+    with flask_app.app_context():
+        login_manager._login_disabled = False
 
     with flask_app.app_context():
         db.session.remove()
