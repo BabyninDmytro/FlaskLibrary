@@ -2,7 +2,7 @@ import pytest
 
 
 from app import app as flask_app
-from extensions import db, login_manager
+from extensions import db
 from models import Book, Reader
 
 
@@ -11,19 +11,11 @@ def app(tmp_path_factory):
     db_file = tmp_path_factory.mktemp('db') / 'test.db'
 
     flask_app.config.update(
-        TESTING=True,
+        TESTING=False,
         LOGIN_DISABLED=False,
         WTF_CSRF_ENABLED=False,
         SQLALCHEMY_DATABASE_URI=f"sqlite:///{db_file}",
     )
-    # Ensure flask-login does not bypass auth checks in testing.
-    with flask_app.app_context():
-        login_manager._login_disabled = False
-        # Some flask-login versions treat TESTING=True as login disabled
-        # even when LOGIN_DISABLED is explicitly False.
-        if login_manager._login_disabled:
-            flask_app.config['TESTING'] = False
-            login_manager._login_disabled = False
 
     with flask_app.app_context():
         db.session.remove()
