@@ -2,9 +2,14 @@ def ensure_guest(client):
     with client.session_transaction() as session:
         session.clear()
 
-    # Also clear remember/session cookies in case the client carries auth state.
+    # Clear remember/session cookies across Flask/Werkzeug client versions.
     if hasattr(client, 'cookie_jar'):
         client.cookie_jar.clear()
+        return
+
+    cookie_store = getattr(client, '_cookies', None)
+    if cookie_store is not None:
+        cookie_store.clear()
 
 
 def test_home_access_behavior_for_guest(client):
