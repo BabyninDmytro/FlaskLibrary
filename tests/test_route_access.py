@@ -6,11 +6,17 @@ def login(client, email='test.user@example.com', password='Secret123!'):
     )
 
 
+def ensure_guest(client):
+    with client.session_transaction() as session:
+        session.clear()
+
+
 def test_root_redirects_guest_to_login(client):
+    ensure_guest(client)
     response = client.get('/', follow_redirects=False)
 
     assert response.status_code == 302
-    assert '/login' in response.headers['Location']
+    assert '/login' in response.headers['Location'], f"Expected /login redirect for guest, got {response.headers.get('Location')}"
 
 
 def test_root_redirects_authenticated_user_to_home(client, user):
@@ -25,6 +31,7 @@ def test_root_redirects_authenticated_user_to_home(client, user):
 
 
 def test_logout_requires_authentication(client):
+    ensure_guest(client)
     response = client.get('/logout', follow_redirects=False)
 
     assert response.status_code == 302
