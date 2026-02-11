@@ -33,6 +33,11 @@ def clean_db(app):
         db.session.commit()
         db.session.remove()
 
+    yield
+
+    with app.app_context():
+        db.session.remove()
+
 
 @pytest.fixture()
 def client(app):
@@ -56,7 +61,9 @@ def user(app):
         reader.set_password('Secret123!')
         db.session.add(reader)
         db.session.commit()
-        return reader.email
+        email = reader.email
+        db.session.remove()
+        return email
 
 
 @pytest.fixture()
@@ -69,4 +76,6 @@ def books(app):
         ]
         db.session.add_all(created)
         db.session.commit()
-        return created
+        titles = [book.title for book in created]
+        db.session.remove()
+        return titles
