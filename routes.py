@@ -62,6 +62,9 @@ def logout():
 @bp.route('/home')
 @login_required
 def home():
+    if not current_user.is_authenticated:
+        return redirect(url_for('main.login'))
+
     search_query = request.args.get('search', '').strip()
     page = request.args.get('page', 1, type=int)
 
