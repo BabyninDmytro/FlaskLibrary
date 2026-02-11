@@ -27,9 +27,11 @@ def app(tmp_path_factory):
 @pytest.fixture(autouse=True)
 def clean_db(app):
     with app.app_context():
+        db.session.remove()
         for table in reversed(db.metadata.sorted_tables):
             db.session.execute(table.delete())
         db.session.commit()
+        db.session.remove()
 
 
 @pytest.fixture()
@@ -54,7 +56,7 @@ def user(app):
         reader.set_password('Secret123!')
         db.session.add(reader)
         db.session.commit()
-        return reader
+        return reader.email
 
 
 @pytest.fixture()

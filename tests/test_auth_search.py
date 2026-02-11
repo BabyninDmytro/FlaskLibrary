@@ -9,6 +9,10 @@ def login(client, email='test.user@example.com', password='Secret123!'):
         follow_redirects=False,
     )
 
+def home_search(client, query):
+    # use current search query parameter
+    return client.get(f'/home?search={query}', follow_redirects=True)
+
 
 def test_login_with_invalid_password_shows_flash(client, user):
     response = client.post(
@@ -75,7 +79,7 @@ def test_register_duplicate_email_shows_error(client, user):
 def test_home_search_single_term_filters_results(client, user, books):
     login(client)
 
-    response = client.get('/home?q=Gamma', follow_redirects=True)
+    response = home_search(client, 'Gamma')
 
     assert response.status_code == 200
     assert b'Gamma Notes' in response.data
@@ -105,7 +109,7 @@ def test_home_search_multiple_terms_matches_across_fields(client, user, app):
         db.session.commit()
 
     login(client)
-    response = client.get('/home?q=Space%20Moroz', follow_redirects=True)
+    response = home_search(client, 'Space%20Moroz')
 
     assert response.status_code == 200
     assert b'Space Journal' in response.data
