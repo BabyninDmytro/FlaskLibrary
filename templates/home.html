@@ -197,8 +197,8 @@
       <form class="search-form" method="get" action="{{ url_for('main.home') }}">
         <div class="search-field">
           <input
-            id="q"
-            name="q"
+            id="search"
+            name="search"
             type="text"
             value="{{ search_query }}"
             placeholder="Search by title, author, month, or year (for example: dune herbert 1965)"
@@ -230,7 +230,7 @@
     {% if books.pages > 1 %}
       <nav class="pagination" aria-label="Books pages">
         {% if books.has_prev %}
-          <a class="page-link" href="{{ url_for('main.home', q=search_query, page=books.prev_num) }}">← Prev</a>
+          <a class="page-link" href="{{ url_for('main.home', search=search_query, page=books.prev_num) }}">← Prev</a>
         {% else %}
           <span class="page-link disabled">← Prev</span>
         {% endif %}
@@ -240,7 +240,7 @@
             {% if page_num == books.page %}
               <span class="page-link active">{{ page_num }}</span>
             {% else %}
-              <a class="page-link" href="{{ url_for('main.home', q=search_query, page=page_num) }}">{{ page_num }}</a>
+              <a class="page-link" href="{{ url_for('main.home', search=search_query, page=page_num) }}">{{ page_num }}</a>
             {% endif %}
           {% else %}
             <span class="page-link disabled">…</span>
@@ -248,7 +248,7 @@
         {% endfor %}
 
         {% if books.has_next %}
-          <a class="page-link" href="{{ url_for('main.home', q=search_query, page=books.next_num) }}">Next →</a>
+          <a class="page-link" href="{{ url_for('main.home', search=search_query, page=books.next_num) }}">Next →</a>
         {% else %}
           <span class="page-link disabled">Next →</span>
         {% endif %}
