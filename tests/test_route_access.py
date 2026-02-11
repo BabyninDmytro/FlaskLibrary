@@ -10,6 +10,10 @@ def ensure_guest(client):
     with client.session_transaction() as session:
         session.clear()
 
+    # Also clear remember/session cookies in case the client carries auth state.
+    if hasattr(client, 'cookie_jar'):
+        client.cookie_jar.clear()
+
 
 def test_root_redirects_guest_to_login(client):
     ensure_guest(client)
