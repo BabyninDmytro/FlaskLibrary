@@ -1,9 +1,14 @@
+def ensure_guest(client):
+    with client.session_transaction() as session:
+        session.clear()
+
+
 def test_home_access_behavior_for_guest(client):
+    ensure_guest(client)
     response = client.get('/home', follow_redirects=False)
 
-    assert response.status_code in (200, 302)
-    if response.status_code == 302:
-        assert '/login' in response.headers['Location']
+    assert response.status_code == 302, f"Expected redirect for guest, got {response.status_code} with Location={response.headers.get('Location')}"
+    assert '/login' in response.headers['Location']
 
 
 def test_login_with_valid_credentials(client, user):
