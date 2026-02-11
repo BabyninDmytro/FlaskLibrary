@@ -16,7 +16,7 @@ def app(tmp_path_factory):
     flask_app = Flask('test_app', template_folder=str(template_dir))
     flask_app.config.update(
         SECRET_KEY='test-secret-key',
-        TESTING=True,
+        TESTING=False,
         LOGIN_DISABLED=False,
         WTF_CSRF_ENABLED=False,
         SQLALCHEMY_DATABASE_URI=f"sqlite:///{db_file}",
