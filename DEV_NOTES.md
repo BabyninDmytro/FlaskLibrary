@@ -13,3 +13,17 @@
 - Updated the Flask-Login user loader to use `db.session.get` to avoid SQLAlchemy 2.0 legacy warnings.
 - Added per-book detail pages and linked book titles in yearly and home listings to those pages.
 - Restyled templates (login, register, home, book list, and book detail) with centered layouts, card-based sections, and unified form/message styling.
+
+
+## Testing quick start
+- Create and activate a virtual environment:
+  - `python -m venv .venv`
+  - `source .venv/bin/activate`
+- Install dependencies:
+  - `python -m pip install -r requirements-dev.txt`
+- Run tests:
+  - `pytest -q`
+
+Notes:
+- `pytest.ini` already points test discovery to `tests/`.
+- `tests/conftest.py` creates an isolated sqlite test database and cleans tables before each test.
