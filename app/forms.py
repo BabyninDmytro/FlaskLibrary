@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import BooleanField, PasswordField, SelectField, StringField, SubmitField, TextAreaField
+from wtforms import BooleanField, PasswordField, RadioField, SelectField, StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Email, EqualTo
 
 
@@ -26,4 +26,10 @@ class LoginForm(FlaskForm):
 
 class ReviewForm(FlaskForm):
     text = TextAreaField('Your review', validators=[DataRequired()])
+    stars = RadioField(
+        'Stars',
+        choices=[('1', '1'), ('2', '2'), ('3', '3'), ('4', '4'), ('5', '5')],
+        coerce=int,
+        validators=[DataRequired()],
+    )
     submit = SubmitField('Add review')

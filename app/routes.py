@@ -122,7 +122,7 @@ def book(book_id):
             flash('Please log in to add a review.', 'error')
             return redirect(url_for('main.login'))
 
-        review = Review(text=form.text.data.strip(), stars=5, book_id=book.id, reviewer_id=current_user.id)
+        review = Review(text=form.text.data.strip(), stars=form.stars.data, book_id=book.id, reviewer_id=current_user.id)
         db.session.add(review)
         db.session.commit()
         return redirect(url_for('main.book', book_id=book.id))

@@ -116,14 +116,43 @@
 
     .review-form textarea {
       width: 100%;
-      min-height: 100px;
-      resize: vertical;
       border: 1px solid #cbd5e1;
       border-radius: 10px;
       padding: 10px 12px;
       font: inherit;
       color: #1c2434;
       box-sizing: border-box;
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    .star-rating {
+      display: inline-flex;
+      flex-direction: row-reverse;
+      gap: 4px;
+      justify-content: flex-end;
+      width: fit-content;
+    }
+
+    .star-rating input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .star-rating label {
+      font-size: 28px;
+      line-height: 1;
+      color: #cbd5e1;
+      cursor: pointer;
+      transition: color 0.15s ease-in-out;
+      font-weight: 400;
+    }
+
+    .star-rating label:hover,
+    .star-rating label:hover ~ label,
+    .star-rating input:checked ~ label {
+      color: #f59e0b;
     }
 
     .review-form button {
@@ -171,6 +200,13 @@
         {{ form.hidden_tag() }}
         <label for="review-text">Add your review</label>
         {{ form.text(id='review-text', placeholder='Write what you think about this book...') }}
+        <label>Stars</label>
+        <div class='star-rating'>
+          {% for subfield in form.stars|reverse %}
+            {{ subfield(id='star-' ~ subfield.data) }}
+            <label for='star-{{ subfield.data }}' aria-label='{{ subfield.label.text }} star'>★</label>
+          {% endfor %}
+        </div>
         {{ form.submit() }}
       </form>
     </section>
