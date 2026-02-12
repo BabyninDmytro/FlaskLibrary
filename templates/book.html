@@ -77,17 +77,31 @@
       gap: 10px;
     }
 
-    .review-list table {
-      width: 100%;
-      border-collapse: collapse;
+    .review-item {
       background: #f8fafc;
       border-radius: 12px;
-      overflow: hidden;
-    }
-
-    .review-list td {
       padding: 10px 12px;
       color: #3c4658;
+    }
+
+    .review-text {
+      margin-top: 4px;
+    }
+
+    .review-stars {
+      margin-top: 6px;
+      display: flex;
+      gap: 2px;
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    .filled-star {
+      color: #f59e0b;
+    }
+
+    .empty-star {
+      color: #cbd5e1;
     }
 
     .empty-state {
@@ -97,6 +111,77 @@
       padding: 16px;
       text-align: center;
       box-shadow: 0 12px 30px rgba(17, 24, 39, 0.1);
+    }
+
+    .review-form {
+      margin-top: 20px;
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 12px 30px rgba(17, 24, 39, 0.1);
+      display: grid;
+      gap: 10px;
+    }
+
+    .review-form label {
+      font-weight: 600;
+      color: #2b3648;
+    }
+
+    .review-form textarea {
+      width: 100%;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font: inherit;
+      color: #1c2434;
+      box-sizing: border-box;
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    .star-rating {
+      display: inline-flex;
+      flex-direction: row-reverse;
+      gap: 4px;
+      justify-content: flex-end;
+      width: fit-content;
+    }
+
+    .star-rating input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .star-rating label {
+      font-size: 28px;
+      line-height: 1;
+      color: #cbd5e1;
+      cursor: pointer;
+      transition: color 0.15s ease-in-out;
+      font-weight: 400;
+    }
+
+    .star-rating label:hover,
+    .star-rating label:hover ~ label,
+    .star-rating input:checked ~ label {
+      color: #f59e0b;
+    }
+
+    .review-form button {
+      justify-self: start;
+      border: none;
+      border-radius: 10px;
+      background: #2b6cb0;
+      color: #ffffff;
+      padding: 10px 16px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .review-form button:hover {
+      background: #245a93;
     }
   </style>
 </head>
@@ -124,6 +209,20 @@
           <div class="empty-state">No reviews yet for this book.</div>
         {% endfor %}
       </div>
+
+      <form class="review-form" action="{{ url_for('main.book', book_id=book.id) }}" method="post">
+        {{ form.hidden_tag() }}
+        <label for="review-text">Add your review</label>
+        {{ form.text(id='review-text', placeholder='Write what you think about this book...') }}
+        <label>Stars</label>
+        <div class='star-rating'>
+          {% for subfield in form.stars|reverse %}
+            {{ subfield(id='star-' ~ subfield.data) }}
+            <label for='star-{{ subfield.data }}' aria-label='{{ subfield.label.text }} star'>★</label>
+          {% endfor %}
+        </div>
+        {{ form.submit() }}
+      </form>
     </section>
   </main>
 </body>
