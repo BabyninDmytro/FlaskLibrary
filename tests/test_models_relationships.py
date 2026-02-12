@@ -1,5 +1,5 @@
-from extensions import db
-from models import Annotation, Book, Reader, Review
+from app.extensions import db
+from app.models import Annotation, Book, Reader, Review
 
 
 def test_deleting_book_cascades_to_reviews_and_annotations(app):

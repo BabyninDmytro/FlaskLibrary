@@ -2,9 +2,9 @@ from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 from sqlalchemy import String, and_, cast, or_
 
-from extensions import db
-from forms import LoginForm, RegistrationForm
-from models import Book, Reader, Review
+from app.extensions import db
+from app.forms import LoginForm, RegistrationForm
+from app.models import Book, Reader, Review
 
 
 bp = Blueprint('main', __name__)
