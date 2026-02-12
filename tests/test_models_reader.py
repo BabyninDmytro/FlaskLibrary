@@ -1,8 +1,8 @@
 import pytest
 from sqlalchemy.exc import IntegrityError
 
-from extensions import db
-from models import Reader
+from app.extensions import db
+from app.models import Reader
 
 
 def test_reader_set_password_stores_hash_not_plaintext(app):

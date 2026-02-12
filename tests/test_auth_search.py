@@ -1,5 +1,5 @@
-from extensions import db
-from models import Book, Reader
+from app.extensions import db
+from app.models import Book, Reader
 
 
 def login(client, email='test.user@example.com', password='Secret123!'):

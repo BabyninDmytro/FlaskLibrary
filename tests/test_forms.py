@@ -1,4 +1,4 @@
-from forms import LoginForm, RegistrationForm
+from app.forms import LoginForm, RegistrationForm
 
 
 def test_registration_form_valid_data(app):
