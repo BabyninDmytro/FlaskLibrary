@@ -34,3 +34,26 @@ def test_user_loader_resolves_existing_user_by_id(app):
 def test_user_loader_returns_none_for_missing_user(app):
     with app.app_context():
         assert load_user(999999) is None
+
+
+def test_create_app_uses_project_instance_path_by_default():
+    from app import create_app
+
+    local_app = create_app({'TESTING': True})
+
+    assert local_app.instance_path.endswith('instance')
+    assert local_app.config['SQLALCHEMY_DATABASE_URI'].endswith('/instance/myDB.db')
+
+
+def test_create_app_supports_instance_and_db_env_overrides(monkeypatch, tmp_path):
+    from app import create_app
+
+    custom_instance = tmp_path / 'custom_instance'
+    custom_db = custom_instance / 'custom.db'
+    monkeypatch.setenv('FLASK_INSTANCE_PATH', str(custom_instance))
+    monkeypatch.setenv('FLASK_DB_PATH', str(custom_db))
+
+    local_app = create_app({'TESTING': True})
+
+    assert local_app.instance_path == str(custom_instance.resolve())
+    assert local_app.config['SQLALCHEMY_DATABASE_URI'].endswith('/custom_instance/custom.db')
