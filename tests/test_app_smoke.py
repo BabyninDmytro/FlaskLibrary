@@ -1,6 +1,6 @@
 from app import load_user
-from extensions import db
-from models import Reader
+from app.extensions import db
+from app.models import Reader
 
 
 def test_app_initializes_with_expected_core_config(app):

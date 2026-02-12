@@ -7,6 +7,8 @@ def login(client, email='test.user@example.com', password='Secret123!'):
 
 
 def ensure_guest(client):
+    client.get('/logout', follow_redirects=False)
+
     with client.session_transaction() as session:
         session.clear()
 
