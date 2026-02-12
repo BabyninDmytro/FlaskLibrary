@@ -1,4 +1,4 @@
-from app.forms import LoginForm, RegistrationForm
+from app.forms import LoginForm, RegistrationForm, ReviewForm
 
 
 def test_registration_form_valid_data(app):
@@ -93,3 +93,27 @@ def test_login_form_requires_fields_and_valid_email(app):
         assert form.validate() is False
         assert any('Invalid email address.' in error for error in form.email.errors)
         assert 'This field is required.' in form.password.errors
+
+
+def test_review_form_requires_text_and_stars(app):
+    with app.test_request_context('/book/1', method='POST', data={'text': '', 'stars': ''}):
+        form = ReviewForm()
+
+        assert form.validate() is False
+        assert 'This field is required.' in form.text.errors
+        assert 'This field is required.' in form.stars.errors
+
+
+def test_review_form_rejects_invalid_stars_choice(app):
+    with app.test_request_context('/book/1', method='POST', data={'text': 'Loved this one', 'stars': 7}):
+        form = ReviewForm()
+
+        assert form.validate() is False
+        assert 'Not a valid choice.' in form.stars.errors
+
+
+def test_review_form_valid_text(app):
+    with app.test_request_context('/book/1', method='POST', data={'text': 'Loved this one', 'stars': 4}):
+        form = ReviewForm()
+
+        assert form.validate() is True

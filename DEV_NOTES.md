@@ -1,5 +1,12 @@
 # Dev Notes
 
+## 2026-02-12
+- Added review submission support on `book.html`: users can now enter custom review text in a new textarea form shown below the existing reviews.
+- Updated `/book/<book_id>` to accept `POST`, save the submitted review to the database for authenticated users, and redirect back to the same page so the new review is visible immediately.
+- Added/updated tests for review form validation and for authenticated/guest review submission behavior on the book page.
+- Extended the review form to collect `Stars` (1-5) from the user and store that value in the `Review.stars` column instead of using a fixed default.
+- Replaced numeric stars input with a clickable star-rating control (★) while keeping stored values in range 1-5.
+
 ## 2026-02-10
 - Reworked `/home` book filtering from multiple dedicated fields to one free-form search field (`q`) placed between the welcome header and the book list.
 - Implemented tokenized smart search: the query is split into words, and each word is matched across title, author name, author surname, month, and year.
