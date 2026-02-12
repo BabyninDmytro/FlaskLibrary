@@ -104,6 +104,8 @@ def test_book_route_can_create_review_for_authenticated_user(client, user, app):
 
     assert response.status_code == 200
     assert b'My fresh review' in response.data
+    assert b'review-stars' in response.data
+    assert b'Stars:' not in response.data
 
     with app.app_context():
         stored = Review.query.filter_by(book_id=book_id, text='My fresh review').first()
