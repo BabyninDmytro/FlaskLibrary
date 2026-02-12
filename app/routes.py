@@ -3,7 +3,7 @@ from flask_login import current_user, login_required, login_user, logout_user
 from sqlalchemy import String, and_, cast, or_
 
 from app.extensions import db
-from app.forms import LoginForm, RegistrationForm
+from app.forms import LoginForm, RegistrationForm, ReviewForm
 from app.models import Book, Reader, Review
 
 
@@ -112,7 +112,19 @@ def reviews(review_id):
     return render_template('_review.html', review=review)
 
 
-@bp.route('/book/<int:book_id>')
+@bp.route('/book/<int:book_id>', methods=['GET', 'POST'])
 def book(book_id):
     book = Book.query.filter_by(id=book_id).first_or_404(description="There is no book with this ID.")
-    return render_template('book.html', book=book)
+    form = ReviewForm()
+
+    if form.validate_on_submit():
+        if not current_user.is_authenticated:
+            flash('Please log in to add a review.', 'error')
+            return redirect(url_for('main.login'))
+
+        review = Review(text=form.text.data.strip(), stars=5, book_id=book.id, reviewer_id=current_user.id)
+        db.session.add(review)
+        db.session.commit()
+        return redirect(url_for('main.book', book_id=book.id))
+
+    return render_template('book.html', book=book, form=form)
