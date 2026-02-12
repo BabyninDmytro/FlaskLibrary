@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from app import load_user
 from app.extensions import db
 from app.models import Reader
@@ -36,13 +38,19 @@ def test_user_loader_returns_none_for_missing_user(app):
         assert load_user(999999) is None
 
 
+def _sqlite_path_from_uri(uri):
+    assert uri.startswith('sqlite:///')
+    return Path(uri.replace('sqlite:///', '', 1)).resolve()
+
+
 def test_create_app_uses_project_instance_path_by_default():
     from app import create_app
 
     local_app = create_app({'TESTING': True})
 
-    assert local_app.instance_path.endswith('instance')
-    assert local_app.config['SQLALCHEMY_DATABASE_URI'].endswith('/instance/myDB.db')
+    assert Path(local_app.instance_path).name == 'instance'
+    assert _sqlite_path_from_uri(local_app.config['SQLALCHEMY_DATABASE_URI']).name == 'myDB.db'
+    assert _sqlite_path_from_uri(local_app.config['SQLALCHEMY_DATABASE_URI']).parent.name == 'instance'
 
 
 def test_create_app_supports_instance_and_db_env_overrides(monkeypatch, tmp_path):
@@ -55,5 +63,5 @@ def test_create_app_supports_instance_and_db_env_overrides(monkeypatch, tmp_path
 
     local_app = create_app({'TESTING': True})
 
-    assert local_app.instance_path == str(custom_instance.resolve())
-    assert local_app.config['SQLALCHEMY_DATABASE_URI'].endswith('/custom_instance/custom.db')
+    assert Path(local_app.instance_path).resolve() == custom_instance.resolve()
+    assert _sqlite_path_from_uri(local_app.config['SQLALCHEMY_DATABASE_URI']) == custom_db.resolve()
