@@ -61,6 +61,27 @@
       margin-bottom: 24px;
     }
 
+    .book-overview {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+    }
+
+    .book-cover {
+      width: 148px;
+      aspect-ratio: 2 / 3;
+      border-radius: 14px;
+      object-fit: cover;
+      background: #e2e8f0;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.15);
+      flex-shrink: 0;
+    }
+
+    .book-details {
+      flex: 1;
+      padding-top: 2px;
+    }
+
     .book-meta {
       margin: 6px 0 0;
       color: #566075;
@@ -183,6 +204,12 @@
     .review-form button:hover {
       background: #245a93;
     }
+
+    @media (max-width: 640px) {
+      .book-overview {
+        flex-direction: column;
+      }
+    }
   </style>
 </head>
 <body>
@@ -196,8 +223,18 @@
     </header>
 
     <section class="book-card">
-      <p class="book-meta">by {{ book.author_name }} {{ book.author_surname }}</p>
-      <p class="book-meta">Suggested in {{ book.month }}, {{ book.year }}</p>
+      <div class="book-overview">
+        <img
+          class="book-cover"
+          src="{{ url_for('static', filename=book.cover_image or 'book_covers/default.svg') }}"
+          alt="Book cover for {{ book.title }}"
+          loading="lazy"
+        >
+        <div class="book-details">
+          <p class="book-meta">by {{ book.author_name }} {{ book.author_surname }}</p>
+          <p class="book-meta">Suggested in {{ book.month }}, {{ book.year }}</p>
+        </div>
+      </div>
     </section>
 
     <section>
