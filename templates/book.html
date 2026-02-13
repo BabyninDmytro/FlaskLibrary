@@ -134,6 +134,29 @@
       box-shadow: 0 12px 30px rgba(17, 24, 39, 0.1);
     }
 
+
+    .annotation-list {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .annotation-item {
+      background: #f8fafc;
+      border-radius: 12px;
+      padding: 10px 12px;
+      color: #3c4658;
+    }
+
+    .annotation-author {
+      font-weight: 600;
+      margin: 0;
+    }
+
+    .annotation-text {
+      margin: 6px 0 0;
+    }
+
     .review-form {
       margin-top: 20px;
       background: #ffffff;
@@ -243,9 +266,30 @@
     </section>
 
     <section>
+      <h2 class="section-title">Annotations</h2>
+      <div class="annotation-list">
+        {% for annotation in annotations %}
+          <article class="annotation-item">
+            <p class="annotation-author">
+              <a href="{{ url_for('main.profile', user_id=annotation.author.id) }}">{{ annotation.author.name }} {{ annotation.author.surname }}</a>
+            </p>
+            <p class="annotation-text">{{ annotation.text }}</p>
+          </article>
+        {% else %}
+          <div class="empty-state">No annotations yet for this book.</div>
+        {% endfor %}
+      </div>
+
+      <form class="review-form" action="{{ url_for('main.book', book_id=book.id) }}" method="post">
+        {{ annotation_form.hidden_tag() }}
+        <label for="annotation-text">Add your annotation</label>
+        {{ annotation_form.text(id='annotation-text', placeholder='Write a short annotation for future readers...') }}
+        {{ annotation_form.submit() }}
+      </form>
+
       <h2 class="section-title">Reviews</h2>
       <div class="review-list">
-        {% for review in book.reviews %}
+        {% for review in reviews %}
           {% include '_review.html' %}
         {% else %}
           <div class="empty-state">No reviews yet for this book.</div>
@@ -253,17 +297,17 @@
       </div>
 
       <form class="review-form" action="{{ url_for('main.book', book_id=book.id) }}" method="post">
-        {{ form.hidden_tag() }}
+        {{ review_form.hidden_tag() }}
         <label for="review-text">Add your review</label>
-        {{ form.text(id='review-text', placeholder='Write what you think about this book...') }}
+        {{ review_form.text(id='review-text', placeholder='Write what you think about this book...') }}
         <label>Stars</label>
         <div class='star-rating'>
-          {% for subfield in form.stars|reverse %}
+          {% for subfield in review_form.stars|reverse %}
             {{ subfield(id='star-' ~ subfield.data) }}
             <label for='star-{{ subfield.data }}' aria-label='{{ subfield.label.text }} star'>★</label>
           {% endfor %}
         </div>
-        {{ form.submit() }}
+        {{ review_form.submit() }}
       </form>
     </section>
   </main>

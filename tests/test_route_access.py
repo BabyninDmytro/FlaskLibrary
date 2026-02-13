@@ -1,5 +1,5 @@
 from app.extensions import db
-from app.models import Book, Review
+from app.models import Annotation, Book, Review
 
 def login(client, email='test.user@example.com', password='Secret123!'):
     return client.post(
@@ -98,7 +98,7 @@ def test_book_route_can_create_review_for_authenticated_user(client, user, app):
 
     response = client.post(
         f'/book/{book_id}',
-        data={'text': 'My fresh review', 'stars': 4},
+        data={'review-text': 'My fresh review', 'review-stars': 4, 'review-submit': '1'},
         follow_redirects=True,
     )
 
@@ -128,7 +128,11 @@ def test_book_route_redirects_guest_when_posting_review(client, app):
         db.session.commit()
         book_id = book.id
 
-    response = client.post(f'/book/{book_id}', data={'text': 'Guest review', 'stars': 3}, follow_redirects=False)
+    response = client.post(
+        f'/book/{book_id}',
+        data={'review-text': 'Guest review', 'review-stars': 3, 'review-submit': '1'},
+        follow_redirects=False,
+    )
 
     assert response.status_code == 302
     assert '/login' in response.headers['Location']
@@ -155,7 +159,7 @@ def test_book_route_does_not_create_review_for_invalid_stars(client, user, app):
 
     response = client.post(
         f'/book/{book_id}',
-        data={'text': 'Should not persist', 'stars': 9},
+        data={'review-text': 'Should not persist', 'review-stars': 9, 'review-submit': '1'},
         follow_redirects=True,
     )
 
@@ -164,3 +168,62 @@ def test_book_route_does_not_create_review_for_invalid_stars(client, user, app):
     with app.app_context():
         stored = Review.query.filter_by(book_id=book_id, text='Should not persist').first()
         assert stored is None
+
+
+
+def test_book_route_can_create_annotation_for_authenticated_user(client, user, app):
+    login_response = login(client)
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        book = Book(
+            title='Annotatable Book',
+            author_name='Lena',
+            author_surname='P',
+            month='October',
+            year=2024,
+        )
+        db.session.add(book)
+        db.session.commit()
+        book_id = book.id
+
+    response = client.post(
+        f'/book/{book_id}',
+        data={'annotation-text': 'A compact and useful annotation', 'annotation-submit': '1'},
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert b'A compact and useful annotation' in response.data
+
+    with app.app_context():
+        stored = Annotation.query.filter_by(book_id=book_id, text='A compact and useful annotation').first()
+        assert stored is not None
+
+
+def test_book_route_redirects_guest_when_posting_annotation(client, app):
+    ensure_guest(client)
+
+    with app.app_context():
+        book = Book(
+            title='Guests Cannot Annotate',
+            author_name='Marta',
+            author_surname='H',
+            month='November',
+            year=2024,
+        )
+        db.session.add(book)
+        db.session.commit()
+        book_id = book.id
+
+    response = client.post(
+        f'/book/{book_id}',
+        data={'annotation-text': 'Guest note', 'annotation-submit': '1'},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 302
+    assert '/login' in response.headers['Location']
+
+    with app.app_context():
+        assert Annotation.query.filter_by(book_id=book_id, text='Guest note').first() is None

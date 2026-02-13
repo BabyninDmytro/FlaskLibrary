@@ -33,3 +33,8 @@ class ReviewForm(FlaskForm):
         validators=[DataRequired()],
     )
     submit = SubmitField('Add review')
+
+
+class AnnotationForm(FlaskForm):
+    text = TextAreaField('Your annotation', validators=[DataRequired()])
+    submit = SubmitField('Save annotation')
