@@ -143,7 +143,6 @@ def book(book_id):
         db.session.commit()
         return redirect(url_for('main.book', book_id=book.id))
 
-    annotations = book.annotations.order_by(Annotation.id.desc()).all()
     reviews = book.reviews.order_by(Review.id.desc()).all()
 
     return render_template(
@@ -151,6 +150,12 @@ def book(book_id):
         book=book,
         review_form=review_form,
         annotation_form=annotation_form,
-        annotations=annotations,
         reviews=reviews,
     )
+
+
+@bp.route('/book/<int:book_id>/read')
+def book_read(book_id):
+    book = Book.query.filter_by(id=book_id).first_or_404(description="There is no book with this ID.")
+    annotations = book.annotations.order_by(Annotation.id.desc()).all()
+    return render_template('book_read.html', book=book, annotations=annotations)

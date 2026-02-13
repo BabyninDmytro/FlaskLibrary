@@ -1,5 +1,5 @@
 from app.extensions import db
-from app.models import Annotation, Book, Review
+from app.models import Annotation, Book, Reader, Review
 
 def login(client, email='test.user@example.com', password='Secret123!'):
     return client.post(
@@ -194,7 +194,8 @@ def test_book_route_can_create_annotation_for_authenticated_user(client, user, a
     )
 
     assert response.status_code == 200
-    assert b'A compact and useful annotation' in response.data
+    assert b'Add your annotation' in response.data
+    assert b'A compact and useful annotation' not in response.data
 
     with app.app_context():
         stored = Annotation.query.filter_by(book_id=book_id, text='A compact and useful annotation').first()
@@ -227,3 +228,59 @@ def test_book_route_redirects_guest_when_posting_annotation(client, app):
 
     with app.app_context():
         assert Annotation.query.filter_by(book_id=book_id, text='Guest note').first() is None
+
+
+def test_book_read_route_returns_404_for_missing_book(client):
+    response = client.get('/book/999999/read', follow_redirects=False)
+
+    assert response.status_code == 404
+
+
+def test_book_read_route_shows_annotations(client, app, user):
+    with app.app_context():
+        reader = Reader.query.filter_by(email=user).first()
+        book = Book(
+            title='Readable Book',
+            author_name='Oksana',
+            author_surname='R',
+            month='December',
+            year=2024,
+        )
+        db.session.add(book)
+        db.session.commit()
+
+        annotation = Annotation(text='Visible only on read page', reviewer_id=reader.id, book_id=book.id)
+        db.session.add(annotation)
+        db.session.commit()
+        book_id = book.id
+
+    response = client.get(f'/book/{book_id}/read', follow_redirects=True)
+
+    assert response.status_code == 200
+    assert b'Annotations' in response.data
+    assert b'Visible only on read page' in response.data
+
+
+def test_book_page_shows_read_now_button_and_hides_annotation_feed(client, app, user):
+    with app.app_context():
+        reader = Reader.query.filter_by(email=user).first()
+        book = Book(
+            title='Book Button Check',
+            author_name='Iryna',
+            author_surname='T',
+            month='January',
+            year=2025,
+        )
+        db.session.add(book)
+        db.session.commit()
+
+        annotation = Annotation(text='Hidden on details page', reviewer_id=reader.id, book_id=book.id)
+        db.session.add(annotation)
+        db.session.commit()
+        book_id = book.id
+
+    response = client.get(f'/book/{book_id}', follow_redirects=True)
+
+    assert response.status_code == 200
+    assert f'/book/{book_id}/read'.encode() in response.data
+    assert b'Hidden on details page' not in response.data
