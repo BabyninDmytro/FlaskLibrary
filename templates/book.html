@@ -231,7 +231,12 @@
           loading="lazy"
         >
         <div class="book-details">
-          <p class="book-meta">by {{ book.author_name }} {{ book.author_surname }}</p>
+          <p class="book-meta">
+            by
+            <a href="{{ url_for('main.home', search=book.author_name ~ ' ' ~ book.author_surname) }}">
+              {{ book.author_name }} {{ book.author_surname }}
+            </a>
+          </p>
           <p class="book-meta">Suggested in {{ book.month }}, {{ book.year }}</p>
         </div>
       </div>
