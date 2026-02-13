@@ -35,3 +35,19 @@ def test_deleting_book_cascades_to_reviews_and_annotations(app):
 
         assert Review.query.filter_by(book_id=book.id).count() == 0
         assert Annotation.query.filter_by(book_id=book.id).count() == 0
+
+
+def test_book_has_default_cover_image(app):
+    with app.app_context():
+        book = Book(
+            title='Cover Default',
+            author_name='Test',
+            author_surname='Author',
+            month='January',
+            year=2026,
+        )
+        db.session.add(book)
+        db.session.commit()
+
+        saved = Book.query.filter_by(id=book.id).first()
+        assert saved.cover_image == 'book_covers/default.svg'
