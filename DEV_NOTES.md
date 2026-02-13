@@ -1,5 +1,14 @@
 # Dev Notes
 
+
+## 2026-02-13
+- Додано підтримку окремої обкладинки для кожної книги: у модель `Book` додано поле `cover_image` з дефолтним шляхом `book_covers/default.svg`.
+- Оновлено шаблон сторінки книги: обкладинка тепер рендериться зі статичних файлів через `url_for('static', filename=book.cover_image)`.
+- Додано набір локальних SVG-обкладинок у `app/static/book_covers/` (для кожної seed-книги + `default.svg`).
+- Оновлено сид-дані в `add_data.py`: для кожної книги збережено власний шлях до обкладинки.
+- Додано тест `test_book_has_default_cover_image`, який перевіряє дефолтне значення обкладинки для нової книги.
+- Зафіксовано візуальну перевірку сторінки книги зі статичною обкладинкою (`/book/12`, Playwright screenshot).
+
 ## 2026-02-12
 - Added review submission support on `book.html`: users can now enter custom review text in a new textarea form shown below the existing reviews.
 - Updated `/book/<book_id>` to accept `POST`, save the submitted review to the database for authenticated users, and redirect back to the same page so the new review is visible immediately.
