@@ -13,6 +13,7 @@ class Book(db.Model):
     author_surname = db.Column(db.String(80), index=True, unique=False)
     month = db.Column(db.String(20), index=True, unique=False)
     year = db.Column(db.Integer, index=True, unique=False)
+    cover_image = db.Column(db.String(255), nullable=False, default='book_covers/default.svg')
     reviews = db.relationship('Review', backref='book', lazy='dynamic', cascade="all, delete, delete-orphan")
     annotations = db.relationship('Annotation', backref='book', lazy='dynamic', cascade="all, delete, delete-orphan")
 

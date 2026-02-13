@@ -1,0 +1,16 @@
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 360'>
+  <defs>
+    <linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>
+      <stop offset='0%' stop-color='#0369a1'/>
+      <stop offset='100%' stop-color='#0f172a'/>
+    </linearGradient>
+  </defs>
+  <rect width='240' height='360' rx='20' fill='url(#g)'/>
+  <rect x='18' y='18' width='204' height='324' rx='14' fill='none' stroke='rgba(255,255,255,0.35)'/>
+  <text x='120' y='120' font-size='18' fill='white' font-family='Segoe UI, sans-serif' text-anchor='middle'>Brave New World</text>
+  <text x='120' y='146' font-size='18' fill='white' font-family='Segoe UI, sans-serif' text-anchor='middle'></text>
+  <text x='120' y='172' font-size='18' fill='white' font-family='Segoe UI, sans-serif' text-anchor='middle'></text>
+  <rect x='54' y='250' width='132' height='3' fill='rgba(255,255,255,0.7)'/>
+  <rect x='54' y='266' width='110' height='3' fill='rgba(255,255,255,0.45)'/>
+  <rect x='54' y='282' width='124' height='3' fill='rgba(255,255,255,0.45)'/>
+</svg>
