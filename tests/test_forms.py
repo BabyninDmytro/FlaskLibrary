@@ -1,4 +1,4 @@
-from app.forms import LoginForm, RegistrationForm, ReviewForm
+from app.forms import AnnotationForm, LoginForm, RegistrationForm, ReviewForm
 
 
 def test_registration_form_valid_data(app):
@@ -96,8 +96,8 @@ def test_login_form_requires_fields_and_valid_email(app):
 
 
 def test_review_form_requires_text_and_stars(app):
-    with app.test_request_context('/book/1', method='POST', data={'text': '', 'stars': ''}):
-        form = ReviewForm()
+    with app.test_request_context('/book/1', method='POST', data={'review-text': '', 'review-stars': ''}):
+        form = ReviewForm(prefix='review')
 
         assert form.validate() is False
         assert 'This field is required.' in form.text.errors
@@ -105,15 +105,31 @@ def test_review_form_requires_text_and_stars(app):
 
 
 def test_review_form_rejects_invalid_stars_choice(app):
-    with app.test_request_context('/book/1', method='POST', data={'text': 'Loved this one', 'stars': 7}):
-        form = ReviewForm()
+    with app.test_request_context('/book/1', method='POST', data={'review-text': 'Loved this one', 'review-stars': 7}):
+        form = ReviewForm(prefix='review')
 
         assert form.validate() is False
         assert 'Not a valid choice.' in form.stars.errors
 
 
 def test_review_form_valid_text(app):
-    with app.test_request_context('/book/1', method='POST', data={'text': 'Loved this one', 'stars': 4}):
-        form = ReviewForm()
+    with app.test_request_context('/book/1', method='POST', data={'review-text': 'Loved this one', 'review-stars': 4}):
+        form = ReviewForm(prefix='review')
+
+        assert form.validate() is True
+
+
+
+def test_annotation_form_requires_text(app):
+    with app.test_request_context('/book/1', method='POST', data={'annotation-text': ''}):
+        form = AnnotationForm(prefix='annotation')
+
+        assert form.validate() is False
+        assert 'This field is required.' in form.text.errors
+
+
+def test_annotation_form_valid_text(app):
+    with app.test_request_context('/book/1', method='POST', data={'annotation-text': 'Great summary for readers'}):
+        form = AnnotationForm(prefix='annotation')
 
         assert form.validate() is True

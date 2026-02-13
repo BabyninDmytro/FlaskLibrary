@@ -45,6 +45,22 @@
       text-decoration: underline;
     }
 
+
+    .read-now-link {
+      display: inline-block;
+      margin-top: 18px;
+      text-decoration: none;
+      background: #2b6cb0;
+      color: #ffffff;
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-weight: 600;
+    }
+
+    .read-now-link:hover {
+      background: #245a93;
+    }
+
     .header-actions {
       position: absolute;
       top: 0;
@@ -238,14 +254,22 @@
             </a>
           </p>
           <p class="book-meta">Suggested in {{ book.month }}, {{ book.year }}</p>
+          <a class="read-now-link" href="{{ url_for('main.book_read', book_id=book.id) }}">Read now</a>
         </div>
       </div>
     </section>
 
     <section>
+      <form class="review-form" action="{{ url_for('main.book', book_id=book.id) }}" method="post">
+        {{ annotation_form.hidden_tag() }}
+        <label for="annotation-text">Add your annotation</label>
+        {{ annotation_form.text(id='annotation-text', placeholder='Write a short annotation for future readers...') }}
+        {{ annotation_form.submit() }}
+      </form>
+
       <h2 class="section-title">Reviews</h2>
       <div class="review-list">
-        {% for review in book.reviews %}
+        {% for review in reviews %}
           {% include '_review.html' %}
         {% else %}
           <div class="empty-state">No reviews yet for this book.</div>
@@ -253,17 +277,17 @@
       </div>
 
       <form class="review-form" action="{{ url_for('main.book', book_id=book.id) }}" method="post">
-        {{ form.hidden_tag() }}
+        {{ review_form.hidden_tag() }}
         <label for="review-text">Add your review</label>
-        {{ form.text(id='review-text', placeholder='Write what you think about this book...') }}
+        {{ review_form.text(id='review-text', placeholder='Write what you think about this book...') }}
         <label>Stars</label>
         <div class='star-rating'>
-          {% for subfield in form.stars|reverse %}
+          {% for subfield in review_form.stars|reverse %}
             {{ subfield(id='star-' ~ subfield.data) }}
             <label for='star-{{ subfield.data }}' aria-label='{{ subfield.label.text }} star'>★</label>
           {% endfor %}
         </div>
-        {{ form.submit() }}
+        {{ review_form.submit() }}
       </form>
     </section>
   </main>
