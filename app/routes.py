@@ -1,5 +1,6 @@
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required, login_user, logout_user
+from jinja2 import TemplateNotFound
 from sqlalchemy import String, and_, cast, or_
 
 from app.extensions import db
@@ -158,4 +159,12 @@ def book(book_id):
 def book_read(book_id):
     book = Book.query.filter_by(id=book_id).first_or_404(description="There is no book with this ID.")
     annotations = book.annotations.order_by(Annotation.id.desc()).all()
-    return render_template('book_read.html', book=book, annotations=annotations)
+
+    book_template = f'book_reads/book_{book.id}_read.html'
+    try:
+        current_app.jinja_env.loader.get_source(current_app.jinja_env, book_template)
+        return render_template(book_template, book=book, annotations=annotations)
+    except TemplateNotFound:
+        pass
+
+    return render_template('book_reads/book_default_read.html', book=book, annotations=annotations)
