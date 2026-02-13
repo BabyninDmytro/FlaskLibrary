@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Read {{ book.title }}</title>
+  <style>
+    body {
+      margin: 0;
+      background: #f8f8f4;
+      color: #1f1f1f;
+      font-family: Georgia, "Times New Roman", serif;
+      line-height: 1.6;
+    }
+
+    main {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 40px 24px 56px;
+    }
+
+    h1 {
+      text-align: center;
+      margin: 0 0 24px;
+      font-size: 36px;
+    }
+
+    h2 {
+      margin: 28px 0 12px;
+      font-size: 24px;
+    }
+
+    p {
+      margin: 0;
+    }
+
+    .description,
+    .annotation-item,
+    .book-text {
+      background: #ffffff;
+      border: 1px solid #d7d7cf;
+      padding: 16px;
+    }
+
+    .annotation-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .annotation-author {
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .back-link {
+      display: inline-block;
+      margin-top: 24px;
+      color: #223d8f;
+      text-decoration: none;
+    }
+
+    .back-link:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>{{ book.title }}</h1>
+
+    <h2>Description</h2>
+    <p class="description">{{ book.author_name }} {{ book.author_surname }} · {{ book.month }} {{ book.year }}</p>
+
+    <h2>Annotations</h2>
+    <div class="annotation-list">
+      {% for annotation in annotations %}
+        <article class="annotation-item">
+          <p class="annotation-author">{{ annotation.author.name }} {{ annotation.author.surname }}</p>
+          <p>{{ annotation.text }}</p>
+        </article>
+      {% else %}
+        <article class="annotation-item">
+          <p>No annotations yet.</p>
+        </article>
+      {% endfor %}
+    </div>
+
+    <h2>Book text</h2>
+    <p class="book-text">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
+
+    <a class="back-link" href="{{ url_for('main.book', book_id=book.id) }}">← Back to book page</a>
+  </main>
+</body>
+</html>

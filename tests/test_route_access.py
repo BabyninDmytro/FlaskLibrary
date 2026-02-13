@@ -236,7 +236,7 @@ def test_book_read_route_returns_404_for_missing_book(client):
     assert response.status_code == 404
 
 
-def test_book_read_route_shows_annotations(client, app, user):
+def test_book_read_route_shows_annotations_in_expected_order(client, app, user):
     with app.app_context():
         reader = Reader.query.filter_by(email=user).first()
         book = Book(
@@ -257,8 +257,15 @@ def test_book_read_route_shows_annotations(client, app, user):
     response = client.get(f'/book/{book_id}/read', follow_redirects=True)
 
     assert response.status_code == 200
-    assert b'Annotations' in response.data
     assert b'Visible only on read page' in response.data
+    assert b'Lorem ipsum' in response.data
+
+    title_index = response.data.index(b'Readable Book')
+    description_index = response.data.index(b'Description')
+    annotations_index = response.data.index(b'Annotations')
+    book_text_index = response.data.index(b'Book text')
+
+    assert title_index < description_index < annotations_index < book_text_index
 
 
 def test_book_page_shows_read_now_button_and_hides_annotation_feed(client, app, user):
@@ -284,3 +291,25 @@ def test_book_page_shows_read_now_button_and_hides_annotation_feed(client, app, 
     assert response.status_code == 200
     assert f'/book/{book_id}/read'.encode() in response.data
     assert b'Hidden on details page' not in response.data
+
+
+
+def test_seed_book_read_page_works(client, app):
+    with app.app_context():
+        book = Book(
+            id=12,
+            title='Seed-like Read Page',
+            author_name='Olha',
+            author_surname='Z',
+            month='March',
+            year=2026,
+        )
+        db.session.add(book)
+        db.session.commit()
+
+    response = client.get('/book/12/read', follow_redirects=True)
+
+    assert response.status_code == 200
+    assert b'Description' in response.data
+    assert b'Annotations' in response.data
+    assert b'Book text' in response.data
