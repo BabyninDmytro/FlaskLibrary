@@ -1,92 +1,147 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="uk">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Read {{ book.title }}</title>
+  <title>{{ book.title }}</title>
   <style>
     body {
       margin: 0;
-      background: #f8f8f4;
-      color: #1f1f1f;
+      background: #f2f2f2;
+      color: #111;
       font-family: Georgia, "Times New Roman", serif;
-      line-height: 1.6;
+      line-height: 1.5;
     }
 
     main {
-      max-width: 760px;
+      max-width: 1100px;
       margin: 0 auto;
-      padding: 40px 24px 56px;
-    }
-
-    h1 {
-      text-align: center;
-      margin: 0 0 24px;
-      font-size: 36px;
-    }
-
-    h2 {
-      margin: 28px 0 12px;
-      font-size: 24px;
-    }
-
-    p {
-      margin: 0;
-    }
-
-    .description,
-    .annotation-item,
-    .book-text {
-      background: #ffffff;
-      border: 1px solid #d7d7cf;
-      padding: 16px;
-    }
-
-    .annotation-list {
-      display: grid;
-      gap: 12px;
-    }
-
-    .annotation-author {
-      font-weight: 700;
-      margin-bottom: 6px;
+      padding: 18px 24px 36px;
     }
 
     .back-link {
       display: inline-block;
-      margin-top: 24px;
-      color: #223d8f;
+      margin: 4px 0 18px;
+      color: #0f2f8a;
       text-decoration: none;
+      font-size: 18px;
     }
 
     .back-link:hover {
       text-decoration: underline;
     }
+
+    h1 {
+      margin: 0 0 14px;
+      text-align: center;
+      font-size: 42px;
+      font-weight: 700;
+    }
+
+    .meta {
+      margin: 0 0 22px;
+      font-size: 24px;
+    }
+
+    .cover {
+      display: block;
+      width: 320px;
+      max-width: 100%;
+      margin: 0 auto 28px;
+      border: 1px solid #d3d3d3;
+      background: #fff;
+    }
+
+    h2 {
+      margin: 0 0 10px;
+      font-size: 30px;
+      font-weight: 700;
+    }
+
+    .annotations {
+      margin-bottom: 26px;
+    }
+
+    .contents {
+      margin-bottom: 14px;
+    }
+
+    .contents-list {
+      margin: 0 0 8px 22px;
+      padding: 0;
+      font-size: 20px;
+    }
+
+    .contents-list a {
+      color: #0f2f8a;
+      text-decoration: none;
+    }
+
+    .contents-list a:hover {
+      text-decoration: underline;
+    }
+
+    .annotation-item {
+      margin-bottom: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #d7d7d7;
+    }
+
+    .annotation-author {
+      margin: 0 0 4px;
+      font-weight: 700;
+      font-size: 19px;
+    }
+
+    .annotation-text {
+      margin: 0;
+      font-size: 19px;
+    }
+
+    .book-text {
+      margin: 0 0 26px;
+      font-size: 20px;
+    }
   </style>
 </head>
 <body>
   <main>
+    <a class="back-link" href="{{ url_for('main.book', book_id=book.id) }}">← Back to book page</a>
+
     <h1>{{ book.title }}</h1>
+    <p class="meta">{{ book.author_name }} {{ book.author_surname }} · {{ book.month }} {{ book.year }}</p>
 
-    <h2>Description</h2>
-    <p class="description">{{ book.author_name }} {{ book.author_surname }} · {{ book.month }} {{ book.year }}</p>
+    <img
+      class="cover"
+      src="{{ url_for('static', filename=book.cover_image or 'book_covers/default.svg') }}"
+      alt="Обкладинка книги {{ book.title }}"
+      loading="lazy"
+    >
 
-    <h2>Annotations</h2>
-    <div class="annotation-list">
+    <section class="annotations">
+      <h2>Анотації</h2>
       {% for annotation in annotations %}
         <article class="annotation-item">
           <p class="annotation-author">{{ annotation.author.name }} {{ annotation.author.surname }}</p>
-          <p>{{ annotation.text }}</p>
+          <p class="annotation-text">{{ annotation.text }}</p>
         </article>
       {% else %}
         <article class="annotation-item">
-          <p>No annotations yet.</p>
+          <p class="annotation-text">Поки немає анотацій.</p>
         </article>
       {% endfor %}
-    </div>
+    </section>
 
-    <h2>Book text</h2>
-    <p class="book-text">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
+    <section class="contents">
+      <h2>Contents</h2>
+      <ul class="contents-list">
+        <li><a href="#chapter-1">Розділ 1</a></li>
+      </ul>
+    </section>
+
+    <section>
+      <p id="chapter-1" class="book-text">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
+    </section>
 
     <a class="back-link" href="{{ url_for('main.book', book_id=book.id) }}">← Back to book page</a>
   </main>

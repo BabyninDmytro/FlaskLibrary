@@ -259,13 +259,23 @@ def test_book_read_route_shows_annotations_in_expected_order(client, app, user):
     assert response.status_code == 200
     assert b'Visible only on read page' in response.data
     assert b'Lorem ipsum' in response.data
+    assert response.data.count(b'Back to book page') == 2
+
+    assert 'Опис:'.encode('utf-8') not in response.data
+    assert 'Текст книги'.encode('utf-8') not in response.data
+    assert b'Contents' in response.data
+    assert 'Розділ 1'.encode('utf-8') in response.data
+    assert b'href="#chapter-1"' in response.data
 
     title_index = response.data.index(b'Readable Book')
-    description_index = response.data.index(b'Description')
-    annotations_index = response.data.index(b'Annotations')
-    book_text_index = response.data.index(b'Book text')
+    description_index = response.data.index(b'Oksana R')
+    cover_index = response.data.index('Обкладинка книги'.encode('utf-8'))
+    annotations_index = response.data.index('Анотації'.encode('utf-8'))
+    contents_index = response.data.index(b'Contents')
+    chapter_link_index = response.data.index('Розділ 1'.encode('utf-8'))
+    book_text_index = response.data.index(b'id="chapter-1"')
 
-    assert title_index < description_index < annotations_index < book_text_index
+    assert title_index < description_index < cover_index < annotations_index < contents_index < chapter_link_index < book_text_index
 
 
 def test_book_page_shows_read_now_button_and_hides_annotation_feed(client, app, user):
@@ -310,6 +320,10 @@ def test_seed_book_read_page_works(client, app):
     response = client.get('/book/12/read', follow_redirects=True)
 
     assert response.status_code == 200
-    assert b'Description' in response.data
-    assert b'Annotations' in response.data
-    assert b'Book text' in response.data
+    assert 'Опис:'.encode('utf-8') not in response.data
+    assert 'Обкладинка книги'.encode('utf-8') in response.data
+    assert 'Анотації'.encode('utf-8') in response.data
+    assert b'Contents' in response.data
+    assert 'Розділ 1'.encode('utf-8') in response.data
+    assert b'id="chapter-1"' in response.data
+    assert 'Текст книги'.encode('utf-8') not in response.data
