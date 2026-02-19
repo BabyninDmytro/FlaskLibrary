@@ -236,7 +236,7 @@ def test_book_read_route_returns_404_for_missing_book(client):
     assert response.status_code == 404
 
 
-def test_book_read_route_shows_annotations(client, app, user):
+def test_book_read_route_shows_annotations_in_expected_order(client, app, user):
     with app.app_context():
         reader = Reader.query.filter_by(email=user).first()
         book = Book(
@@ -257,8 +257,25 @@ def test_book_read_route_shows_annotations(client, app, user):
     response = client.get(f'/book/{book_id}/read', follow_redirects=True)
 
     assert response.status_code == 200
-    assert b'Annotations' in response.data
     assert b'Visible only on read page' in response.data
+    assert b'Lorem ipsum' in response.data
+    assert response.data.count(b'Back to book page') == 2
+
+    assert 'Опис:'.encode('utf-8') not in response.data
+    assert 'Текст книги'.encode('utf-8') not in response.data
+    assert b'Contents' in response.data
+    assert 'Розділ 1'.encode('utf-8') in response.data
+    assert b'href="#chapter-1"' in response.data
+
+    title_index = response.data.index(b'Readable Book')
+    description_index = response.data.index(b'Oksana R')
+    cover_index = response.data.index('Обкладинка книги'.encode('utf-8'))
+    annotations_index = response.data.index('Анотації'.encode('utf-8'))
+    contents_index = response.data.index(b'Contents')
+    chapter_link_index = response.data.index('Розділ 1'.encode('utf-8'))
+    book_text_index = response.data.index(b'id="chapter-1"')
+
+    assert title_index < description_index < cover_index < annotations_index < contents_index < chapter_link_index < book_text_index
 
 
 def test_book_page_shows_read_now_button_and_hides_annotation_feed(client, app, user):
@@ -284,3 +301,29 @@ def test_book_page_shows_read_now_button_and_hides_annotation_feed(client, app, 
     assert response.status_code == 200
     assert f'/book/{book_id}/read'.encode() in response.data
     assert b'Hidden on details page' not in response.data
+
+
+
+def test_seed_book_read_page_works(client, app):
+    with app.app_context():
+        book = Book(
+            id=12,
+            title='Seed-like Read Page',
+            author_name='Olha',
+            author_surname='Z',
+            month='March',
+            year=2026,
+        )
+        db.session.add(book)
+        db.session.commit()
+
+    response = client.get('/book/12/read', follow_redirects=True)
+
+    assert response.status_code == 200
+    assert 'Опис:'.encode('utf-8') not in response.data
+    assert 'Обкладинка книги'.encode('utf-8') in response.data
+    assert 'Анотації'.encode('utf-8') in response.data
+    assert b'Contents' in response.data
+    assert 'Розділ 1'.encode('utf-8') in response.data
+    assert b'id="chapter-1"' in response.data
+    assert 'Текст книги'.encode('utf-8') not in response.data
