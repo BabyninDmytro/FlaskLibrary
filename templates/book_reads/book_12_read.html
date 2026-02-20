@@ -98,6 +98,25 @@
       font-size: 19px;
     }
 
+    .annotation-actions {
+      margin-top: 8px;
+    }
+
+    .admin-inline-button {
+      border: none;
+      border-radius: 8px;
+      background: #b91c1c;
+      color: #fff;
+      padding: 6px 10px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .admin-inline-button:hover {
+      background: #991b1b;
+    }
+
     .book-text {
       margin: 0 0 26px;
       font-size: 20px;
@@ -124,6 +143,11 @@
         <article class="annotation-item">
           <p class="annotation-author">{{ annotation.author.name }} {{ annotation.author.surname }}</p>
           <p class="annotation-text">{{ annotation.text }}</p>
+          {% if current_user.is_authenticated and current_user.role == 'librarian' %}
+            <form class="annotation-actions" action="{{ url_for('main.delete_annotation', annotation_id=annotation.id) }}" method="post">
+              <button class="admin-inline-button" type="submit">Delete annotation</button>
+            </form>
+          {% endif %}
         </article>
       {% else %}
         <article class="annotation-item">

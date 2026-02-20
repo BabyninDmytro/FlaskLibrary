@@ -1,6 +1,14 @@
 # Dev Notes
 
 
+## 2026-02-20
+- Для моделі `Book` додано прапорець `is_hidden` (default `False`) для підтримки приховування книг бібліотекарем.
+- Додано рольову перевірку `librarian` у роутингу: звичайні читачі не бачать приховані книги у `/home` та `/books/<year>`, а також не можуть відкривати `/book/<id>` і `/book/<id>/read` для прихованих книг.
+- Реалізовано moderation-маршрути для `Librarian`: `POST /book/<id>/toggle-hidden`, `POST /reviews/<id>/delete`, `POST /annotations/<id>/delete`.
+- Оновлено UI: на `home.html` і `book.html` для бібліотекаря додано кнопки Hide/Unhide; на шаблонах читання (`templates/book_reads/*`) додано кнопки видалення анотацій; у review-блоці додано кнопку видалення коментаря.
+- Додано тестові сценарії для прав бібліотекаря: приховування/показ книг, видалення review/annotation, а також перевірки, що звичайний Reader не може виконувати moderation-дії.
+
+
 ## 2026-02-13
 - Для маршруту `/book/<book_id>/read` додано вибір окремого шаблону за `book_id`: якщо є `templates/book_reads/book_<id>_read.html`, рендериться саме він; для не-seed книг використовується `book_default_read.html`.
 - Додано окремі read-шаблони для seed-книг (`book_12_read.html` ... `book_30_read.html`) зі спрощеним "plain document" стилем (serif, мінімум декоративних елементів).
