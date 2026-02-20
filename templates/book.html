@@ -289,6 +289,11 @@
     <header class="page-header">
       <h1>{{ book.title }}</h1>
       <div class="header-actions">
+        {% if current_user.is_authenticated and current_user.role == 'librarian' %}
+          <form class="admin-inline-form" action="{{ url_for('main.toggle_book_hidden', book_id=book.id) }}" method="post">
+            <button class="admin-inline-button" type="submit">{% if book.is_hidden %}Unhide book{% else %}Hide book{% endif %}</button>
+          </form>
+        {% endif %}
         <a class="nav-link" href="{{ url_for('main.home') }}">Back to home</a>
         <a class="nav-link" href="{{ url_for('main.logout') }}">Logout</a>
       </div>
