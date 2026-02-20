@@ -2,6 +2,8 @@
 
 
 ## 2026-02-20
+- Виправлено кешування після logout: у `app.after_request` додано заголовки `Cache-Control: no-store, no-cache, must-revalidate, max-age=0`, `Pragma: no-cache`, `Expires: 0`, щоб кнопка Back не відкривала закешовані захищені сторінки після розлогіну.
+- Додано тест `test_protected_pages_send_no_store_cache_headers`, який перевіряє no-store заголовки для сторінки книги `/book/<id>`.
 - Візуальне доопрацювання `book.html`: прибрано верхню кнопку `Hide/Unhide book`; залишена кнопка біля `Read now` у блоці книги та приведена до того самого розміру, що й `Read now`.
 - Follow-up UX: кнопку `Hide/Unhide book` на сторінці книги перенесено з верхнього header-блоку в картку книги (поруч із кнопкою `Read now`).
 - Обмежено створення анотацій: форму `Add your annotation` бачить і може submit-ити тільки `librarian`; для звичайного `reader` форма прихована, а POST-спроба створення анотації редіректить на `/home` без запису в БД.

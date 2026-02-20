@@ -52,6 +52,13 @@ def create_app(test_config=None):
 
     app.register_blueprint(bp)
 
+    @app.after_request
+    def add_no_store_headers(response):
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        return response
+
 
     @login_manager.user_loader
     def _load_user(user_id):
