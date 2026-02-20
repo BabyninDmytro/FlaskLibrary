@@ -111,12 +111,14 @@ def home():
 
 
 @bp.route('/profile/<int:user_id>')
+@login_required
 def profile(user_id):
     reader = Reader.query.filter_by(id=user_id).first_or_404(description="There is no user with this ID.")
     return render_template('profile.html', reader=reader)
 
 
 @bp.route('/books/<year>')
+@login_required
 def books(year):
     books = Book.query.filter_by(year=year)
     if not _is_librarian(current_user):
@@ -125,12 +127,14 @@ def books(year):
 
 
 @bp.route('/reviews/<int:review_id>')
+@login_required
 def reviews(review_id):
     review = Review.query.filter_by(id=review_id).first_or_404(description="There is no user with this ID.")
     return render_template('_review.html', review=review)
 
 
 @bp.route('/book/<int:book_id>', methods=['GET', 'POST'])
+@login_required
 def book(book_id):
     book = Book.query.filter_by(id=book_id).first_or_404(description="There is no book with this ID.")
     if book.is_hidden and not _is_librarian(current_user):
@@ -178,6 +182,7 @@ def book(book_id):
 
 
 @bp.route('/book/<int:book_id>/read')
+@login_required
 def book_read(book_id):
     book = Book.query.filter_by(id=book_id).first_or_404(description="There is no book with this ID.")
     if book.is_hidden and not _is_librarian(current_user):
