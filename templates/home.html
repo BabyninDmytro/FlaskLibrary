@@ -258,7 +258,7 @@
           <div class="book-title-row">
             <a href="{{ url_for('main.book', book_id=book.id) }}">{{ book.title }}</a>
             {% if book.is_hidden %}<span class="hidden-badge">Hidden</span>{% endif %}
-            {% if current_user.role == 'librarian' %}
+            {% if is_librarian %}
               <form class="admin-inline-form" action="{{ url_for('main.toggle_book_hidden', book_id=book.id) }}" method="post">
                 <button class="admin-inline-button" type="submit">{% if book.is_hidden %}Unhide{% else %}Hide{% endif %}</button>
               </form>

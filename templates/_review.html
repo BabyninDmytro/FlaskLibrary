@@ -6,7 +6,7 @@
       <span class="{% if star_index <= review.stars %}filled-star{% else %}empty-star{% endif %}">★</span>
     {% endfor %}
   </div>
-  {% if current_user.is_authenticated and current_user.role == 'librarian' %}
+  {% if is_librarian %}
     <form class="admin-inline-form" action="{{ url_for('main.delete_review', review_id=review.id) }}" method="post">
       <button class="admin-inline-button" type="submit">Delete comment</button>
     </form>

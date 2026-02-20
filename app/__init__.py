@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 
 from flask import Flask
+from flask_login import current_user
 from sqlalchemy.exc import OperationalError
 
 from app.extensions import db, login_manager
@@ -51,6 +52,14 @@ def create_app(test_config=None):
     from app.routes import bp  # noqa: E402
 
     app.register_blueprint(bp)
+
+    @app.after_request
+    def add_no_store_headers(response):
+        if current_user.is_authenticated:
+            response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
+        return response
 
 
     @login_manager.user_loader

@@ -82,8 +82,9 @@ def home():
     page = request.args.get('page', 1, type=int)
 
     query = Book.query
+    is_librarian = _is_librarian(current_user)
 
-    if not _is_librarian(current_user):
+    if not is_librarian:
         query = query.filter_by(is_hidden=False)
 
     if search_query:
@@ -107,7 +108,7 @@ def home():
 
     books = query.order_by(Book.year.desc(), Book.month.asc(), Book.title.asc()).paginate(page=page, per_page=10, error_out=False)
 
-    return render_template('home.html', books=books, search_query=search_query)
+    return render_template('home.html', books=books, search_query=search_query, is_librarian=is_librarian)
 
 
 @bp.route('/profile/<int:user_id>')
@@ -121,23 +122,25 @@ def profile(user_id):
 @login_required
 def books(year):
     books = Book.query.filter_by(year=year)
-    if not _is_librarian(current_user):
+    is_librarian = _is_librarian(current_user)
+    if not is_librarian:
         books = books.filter_by(is_hidden=False)
-    return render_template('display_books.html', year=year, books=books)
+    return render_template('display_books.html', year=year, books=books, is_librarian=is_librarian)
 
 
 @bp.route('/reviews/<int:review_id>')
 @login_required
 def reviews(review_id):
     review = Review.query.filter_by(id=review_id).first_or_404(description="There is no user with this ID.")
-    return render_template('_review.html', review=review)
+    return render_template('_review.html', review=review, is_librarian=_is_librarian(current_user))
 
 
 @bp.route('/book/<int:book_id>', methods=['GET', 'POST'])
 @login_required
 def book(book_id):
     book = Book.query.filter_by(id=book_id).first_or_404(description="There is no book with this ID.")
-    if book.is_hidden and not _is_librarian(current_user):
+    is_librarian = _is_librarian(current_user)
+    if book.is_hidden and not is_librarian:
         return redirect(url_for('main.home'))
     review_form = ReviewForm(prefix='review')
     annotation_form = AnnotationForm(prefix='annotation')
@@ -162,7 +165,7 @@ def book(book_id):
             flash('Please log in to add an annotation.', 'error')
             return redirect(url_for('main.login'))
 
-        if not _is_librarian(current_user):
+        if not is_librarian:
             return redirect(url_for('main.home'))
 
         annotation = Annotation(text=annotation_form.text.data.strip(), book_id=book.id, reviewer_id=current_user.id)
@@ -178,6 +181,7 @@ def book(book_id):
         review_form=review_form,
         annotation_form=annotation_form,
         reviews=reviews,
+        is_librarian=is_librarian,
     )
 
 
@@ -185,18 +189,19 @@ def book(book_id):
 @login_required
 def book_read(book_id):
     book = Book.query.filter_by(id=book_id).first_or_404(description="There is no book with this ID.")
-    if book.is_hidden and not _is_librarian(current_user):
+    is_librarian = _is_librarian(current_user)
+    if book.is_hidden and not is_librarian:
         return redirect(url_for('main.home'))
     annotations = book.annotations.order_by(Annotation.id.desc()).all()
 
     book_template = f'book_reads/book_{book.id}_read.html'
     try:
         current_app.jinja_env.loader.get_source(current_app.jinja_env, book_template)
-        return render_template(book_template, book=book, annotations=annotations)
+        return render_template(book_template, book=book, annotations=annotations, is_librarian=is_librarian)
     except TemplateNotFound:
         pass
 
-    return render_template('book_reads/book_default_read.html', book=book, annotations=annotations)
+    return render_template('book_reads/book_default_read.html', book=book, annotations=annotations, is_librarian=is_librarian)
 
 
 @bp.route('/book/<int:book_id>/toggle-hidden', methods=['POST'])
