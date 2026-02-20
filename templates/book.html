@@ -67,6 +67,25 @@
       right: 0;
       display: flex;
       gap: 16px;
+      align-items: center;
+    }
+
+    .admin-inline-form {
+      margin: 0;
+    }
+
+    .admin-inline-button {
+      border: none;
+      border-radius: 8px;
+      background: #b91c1c;
+      color: #fff;
+      padding: 7px 10px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .admin-inline-button:hover {
+      background: #991b1b;
     }
 
     .book-card {
@@ -256,6 +275,11 @@
     <header class="page-header">
       <h1>{{ book.title }}</h1>
       <div class="header-actions">
+        {% if current_user.is_authenticated and current_user.role == 'librarian' %}
+          <form class="admin-inline-form" action="{{ url_for('main.toggle_book_hidden', book_id=book.id) }}" method="post">
+            <button class="admin-inline-button" type="submit">{% if book.is_hidden %}Unhide book{% else %}Hide book{% endif %}</button>
+          </form>
+        {% endif %}
         <a class="nav-link" href="{{ url_for('main.home') }}">Back to home</a>
         <a class="nav-link" href="{{ url_for('main.logout') }}">Logout</a>
       </div>

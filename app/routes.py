@@ -1,4 +1,4 @@
-from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 from jinja2 import TemplateNotFound
 from sqlalchemy import String, and_, cast, or_
@@ -9,6 +9,18 @@ from app.models import Annotation, Book, Reader, Review
 
 
 bp = Blueprint('main', __name__)
+
+
+def _is_librarian(user):
+    if not user.is_authenticated:
+        return False
+
+    user_id = session.get('_user_id')
+    if not user_id:
+        return False
+
+    persisted_user = db.session.get(Reader, int(user_id))
+    return persisted_user is not None and persisted_user.role == 'librarian'
 
 
 
@@ -71,6 +83,9 @@ def home():
 
     query = Book.query
 
+    if not _is_librarian(current_user):
+        query = query.filter_by(is_hidden=False)
+
     if search_query:
         terms = [term for term in search_query.split() if term]
         term_filters = []
@@ -104,6 +119,8 @@ def profile(user_id):
 @bp.route('/books/<year>')
 def books(year):
     books = Book.query.filter_by(year=year)
+    if not _is_librarian(current_user):
+        books = books.filter_by(is_hidden=False)
     return render_template('display_books.html', year=year, books=books)
 
 
@@ -116,6 +133,8 @@ def reviews(review_id):
 @bp.route('/book/<int:book_id>', methods=['GET', 'POST'])
 def book(book_id):
     book = Book.query.filter_by(id=book_id).first_or_404(description="There is no book with this ID.")
+    if book.is_hidden and not _is_librarian(current_user):
+        return redirect(url_for('main.home'))
     review_form = ReviewForm(prefix='review')
     annotation_form = AnnotationForm(prefix='annotation')
 
@@ -158,6 +177,8 @@ def book(book_id):
 @bp.route('/book/<int:book_id>/read')
 def book_read(book_id):
     book = Book.query.filter_by(id=book_id).first_or_404(description="There is no book with this ID.")
+    if book.is_hidden and not _is_librarian(current_user):
+        return redirect(url_for('main.home'))
     annotations = book.annotations.order_by(Annotation.id.desc()).all()
 
     book_template = f'book_reads/book_{book.id}_read.html'
@@ -168,3 +189,44 @@ def book_read(book_id):
         pass
 
     return render_template('book_reads/book_default_read.html', book=book, annotations=annotations)
+
+
+@bp.route('/book/<int:book_id>/toggle-hidden', methods=['POST'])
+@login_required
+def toggle_book_hidden(book_id):
+    if not _is_librarian(current_user):
+        return redirect(url_for('main.home'))
+
+    book = Book.query.filter_by(id=book_id).first_or_404(description="There is no book with this ID.")
+    book.is_hidden = not book.is_hidden
+    db.session.commit()
+
+    return redirect(request.referrer or url_for('main.book', book_id=book.id))
+
+
+@bp.route('/reviews/<int:review_id>/delete', methods=['POST'])
+@login_required
+def delete_review(review_id):
+    if not _is_librarian(current_user):
+        return redirect(url_for('main.home'))
+
+    review = Review.query.filter_by(id=review_id).first_or_404(description="There is no review with this ID.")
+    book_id = review.book_id
+    db.session.delete(review)
+    db.session.commit()
+
+    return redirect(request.referrer or url_for('main.book', book_id=book_id))
+
+
+@bp.route('/annotations/<int:annotation_id>/delete', methods=['POST'])
+@login_required
+def delete_annotation(annotation_id):
+    if not _is_librarian(current_user):
+        return redirect(url_for('main.home'))
+
+    annotation = Annotation.query.filter_by(id=annotation_id).first_or_404(description="There is no annotation with this ID.")
+    book_id = annotation.book_id
+    db.session.delete(annotation)
+    db.session.commit()
+
+    return redirect(request.referrer or url_for('main.book_read', book_id=book_id))

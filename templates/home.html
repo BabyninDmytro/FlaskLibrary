@@ -184,6 +184,44 @@
       margin: 6px 0 0;
       color: #566075;
     }
+
+    .book-title-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .hidden-badge {
+      display: inline-block;
+      background: #fee2e2;
+      color: #991b1b;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .admin-inline-form {
+      display: inline;
+    }
+
+    .admin-inline-button {
+      border: none;
+      border-radius: 8px;
+      background: #b91c1c;
+      color: #ffffff;
+      padding: 7px 10px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .admin-inline-button:hover {
+      background: #991b1b;
+    }
   </style>
 </head>
 <body>
@@ -217,7 +255,15 @@
     <ul class="book-list">
       {% for book in books.items %}
         <li class="book-card">
-          <a href="{{ url_for('main.book', book_id=book.id) }}">{{ book.title }}</a>
+          <div class="book-title-row">
+            <a href="{{ url_for('main.book', book_id=book.id) }}">{{ book.title }}</a>
+            {% if book.is_hidden %}<span class="hidden-badge">Hidden</span>{% endif %}
+            {% if current_user.role == 'librarian' %}
+              <form class="admin-inline-form" action="{{ url_for('main.toggle_book_hidden', book_id=book.id) }}" method="post">
+                <button class="admin-inline-button" type="submit">{% if book.is_hidden %}Unhide{% else %}Hide{% endif %}</button>
+              </form>
+            {% endif %}
+          </div>
           <p class="book-meta">
             by
             <a href="{{ url_for('main.home', search=book.author_name ~ ' ' ~ book.author_surname) }}">
