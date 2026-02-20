@@ -96,22 +96,25 @@ def test_public_login_page_is_not_marked_no_store(client):
     assert response.status_code == 200
     assert response.headers.get('Cache-Control') != 'no-store, no-cache, must-revalidate, max-age=0'
 
-def test_book_route_returns_404_for_missing_book(client):
+def test_book_route_redirects_guest_for_missing_book(client):
     response = client.get('/book/999999', follow_redirects=False)
 
-    assert response.status_code == 404
+    assert response.status_code == 302
+    assert '/login' in response.headers['Location']
 
 
-def test_profile_route_returns_404_for_missing_user(client):
+def test_profile_route_redirects_guest_for_missing_user(client):
     response = client.get('/profile/999999', follow_redirects=False)
 
-    assert response.status_code == 404
+    assert response.status_code == 302
+    assert '/login' in response.headers['Location']
 
 
-def test_reviews_route_returns_404_for_missing_review(client):
+def test_reviews_route_redirects_guest_for_missing_review(client):
     response = client.get('/reviews/999999', follow_redirects=False)
 
-    assert response.status_code == 404
+    assert response.status_code == 302
+    assert '/login' in response.headers['Location']
 
 
 def test_book_route_can_create_review_for_authenticated_user(client, user, app):
@@ -300,13 +303,17 @@ def test_book_route_redirects_guest_when_posting_annotation(client, app):
         assert Annotation.query.filter_by(book_id=book_id, text='Guest note').first() is None
 
 
-def test_book_read_route_returns_404_for_missing_book(client):
+def test_book_read_route_redirects_guest_for_missing_book(client):
     response = client.get('/book/999999/read', follow_redirects=False)
 
-    assert response.status_code == 404
+    assert response.status_code == 302
+    assert '/login' in response.headers['Location']
 
 
 def test_book_read_route_shows_annotations_in_expected_order(client, app, user):
+    login_response = login(client)
+    assert login_response.status_code == 302
+
     with app.app_context():
         reader = Reader.query.filter_by(email=user).first()
         book = Book(
@@ -349,6 +356,9 @@ def test_book_read_route_shows_annotations_in_expected_order(client, app, user):
 
 
 def test_book_page_shows_read_now_button_and_hides_annotation_feed(client, app, user):
+    login_response = login(client)
+    assert login_response.status_code == 302
+
     with app.app_context():
         reader = Reader.query.filter_by(email=user).first()
         book = Book(
@@ -374,7 +384,10 @@ def test_book_page_shows_read_now_button_and_hides_annotation_feed(client, app, 
 
 
 
-def test_seed_book_read_page_works(client, app):
+def test_seed_book_read_page_works(client, app, user):
+    login_response = login(client)
+    assert login_response.status_code == 302
+
     with app.app_context():
         book = Book(
             id=12,

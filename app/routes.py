@@ -114,6 +114,8 @@ def home():
 @bp.route('/profile/<int:user_id>')
 @login_required
 def profile(user_id):
+    if not current_user.is_authenticated:
+        return redirect(url_for('main.login'))
     reader = Reader.query.filter_by(id=user_id).first_or_404(description="There is no user with this ID.")
     return render_template('profile.html', reader=reader)
 
@@ -131,6 +133,8 @@ def books(year):
 @bp.route('/reviews/<int:review_id>')
 @login_required
 def reviews(review_id):
+    if not current_user.is_authenticated:
+        return redirect(url_for('main.login'))
     review = Review.query.filter_by(id=review_id).first_or_404(description="There is no user with this ID.")
     return render_template('_review.html', review=review, is_librarian=_is_librarian(current_user))
 
@@ -138,6 +142,8 @@ def reviews(review_id):
 @bp.route('/book/<int:book_id>', methods=['GET', 'POST'])
 @login_required
 def book(book_id):
+    if not current_user.is_authenticated:
+        return redirect(url_for('main.login'))
     book = Book.query.filter_by(id=book_id).first_or_404(description="There is no book with this ID.")
     is_librarian = _is_librarian(current_user)
     if book.is_hidden and not is_librarian:
@@ -188,6 +194,8 @@ def book(book_id):
 @bp.route('/book/<int:book_id>/read')
 @login_required
 def book_read(book_id):
+    if not current_user.is_authenticated:
+        return redirect(url_for('main.login'))
     book = Book.query.filter_by(id=book_id).first_or_404(description="There is no book with this ID.")
     is_librarian = _is_librarian(current_user)
     if book.is_hidden and not is_librarian:
