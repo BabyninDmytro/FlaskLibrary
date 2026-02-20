@@ -137,24 +137,7 @@
       loading="lazy"
     >
 
-    <section class="annotations">
-      <h2>Анотації</h2>
-      {% for annotation in annotations %}
-        <article class="annotation-item">
-          <p class="annotation-author">{{ annotation.author.name }} {{ annotation.author.surname }}</p>
-          <p class="annotation-text">{{ annotation.text }}</p>
-          {% if current_user.is_authenticated and current_user.role == 'librarian' %}
-            <form class="annotation-actions" action="{{ url_for('main.delete_annotation', annotation_id=annotation.id) }}" method="post">
-              <button class="admin-inline-button" type="submit">Delete annotation</button>
-            </form>
-          {% endif %}
-        </article>
-      {% else %}
-        <article class="annotation-item">
-          <p class="annotation-text">Поки немає анотацій.</p>
-        </article>
-      {% endfor %}
-    </section>
+    {% include 'book_reads/_annotations_section.html' %}
 
     <section class="contents">
       <h2>Contents</h2>

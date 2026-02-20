@@ -86,6 +86,16 @@ def test_protected_pages_send_no_store_cache_headers(client, user, app):
     assert response.headers['Expires'] == '0'
 
 
+
+
+def test_public_login_page_is_not_marked_no_store(client):
+    ensure_guest(client)
+
+    response = client.get('/login', follow_redirects=False)
+
+    assert response.status_code == 200
+    assert response.headers.get('Cache-Control') != 'no-store, no-cache, must-revalidate, max-age=0'
+
 def test_book_route_returns_404_for_missing_book(client):
     response = client.get('/book/999999', follow_redirects=False)
 

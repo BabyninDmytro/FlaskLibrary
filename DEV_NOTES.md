@@ -2,6 +2,12 @@
 
 
 ## 2026-02-20
+- Секцію `Annotations` на read-сторінках винесено в спільний partial `templates/book_reads/_annotations_section.html` і підключено через `{% include %}` у всіх `book_*_read.html` та `book_default_read.html`; це прибирає дублювання й спрощує подальші зміни UI/логіки анотацій.
+- Перевірено й прибрано неявне використання `current_user.role` на інших сторінках: шаблони `book.html`, `_review.html` та всі `templates/book_reads/*` переведено на явний прапорець `is_librarian`, який передається з роутів.
+- Оновлено роутинг для явного контексту ролі: `book`, `book_read`, `reviews`, `books/<year>` тепер передають `is_librarian` у `render_template`, щоб шаблони не залежали від глобального `current_user`.
+- Уточнено джерело ролі для `home.html`: тепер роут `/home` явно передає прапорець `is_librarian` у шаблон (замість перевірки `current_user.role` прямо в template), щоб уникнути неявної залежності від глобального контексту.
+- Заголовки anti-cache після logout звужено до автентифікованих запитів: `no-store` тепер виставляється тільки коли `current_user.is_authenticated`, щоб не відключати кешування для публічних сторінок (наприклад, `/login`).
+- Додано тест `test_public_login_page_is_not_marked_no_store` для перевірки, що сторінка входу не маркується `no-store`.
 - Виправлено кешування після logout: у `app.after_request` додано заголовки `Cache-Control: no-store, no-cache, must-revalidate, max-age=0`, `Pragma: no-cache`, `Expires: 0`, щоб кнопка Back не відкривала закешовані захищені сторінки після розлогіну.
 - Додано тест `test_protected_pages_send_no_store_cache_headers`, який перевіряє no-store заголовки для сторінки книги `/book/<id>`.
 - Візуальне доопрацювання `book.html`: прибрано верхню кнопку `Hide/Unhide book`; залишена кнопка біля `Read now` у блоці книги та приведена до того самого розміру, що й `Read now`.
