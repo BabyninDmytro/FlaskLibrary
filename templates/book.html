@@ -67,6 +67,27 @@
       right: 0;
       display: flex;
       gap: 16px;
+      align-items: center;
+    }
+
+    .admin-inline-form {
+      margin: 0;
+    }
+
+    .admin-inline-button {
+      border: none;
+      border-radius: 10px;
+      background: #b91c1c;
+      color: #fff;
+      padding: 10px 16px;
+      font-weight: 600;
+      cursor: pointer;
+      font: inherit;
+      line-height: 1.2;
+    }
+
+    .admin-inline-button:hover {
+      background: #991b1b;
     }
 
     .book-card {
@@ -101,6 +122,18 @@
     .book-meta {
       margin: 6px 0 0;
       color: #566075;
+    }
+
+    .book-actions {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-top: 18px;
+      flex-wrap: wrap;
+    }
+
+    .book-actions .read-now-link {
+      margin-top: 0;
     }
 
     .section-title {
@@ -277,18 +310,27 @@
             </a>
           </p>
           <p class="book-meta">Suggested in {{ book.month }}, {{ book.year }}</p>
-          <a class="read-now-link" href="{{ url_for('main.book_read', book_id=book.id) }}">Read now</a>
+          <div class="book-actions">
+            <a class="read-now-link" href="{{ url_for('main.book_read', book_id=book.id) }}">Read now</a>
+            {% if current_user.is_authenticated and current_user.role == 'librarian' %}
+              <form class="admin-inline-form" action="{{ url_for('main.toggle_book_hidden', book_id=book.id) }}" method="post">
+                <button class="admin-inline-button" type="submit">{% if book.is_hidden %}Unhide book{% else %}Hide book{% endif %}</button>
+              </form>
+            {% endif %}
+          </div>
         </div>
       </div>
     </section>
 
     <section>
-      <form class="review-form" action="{{ url_for('main.book', book_id=book.id) }}" method="post">
-        {{ annotation_form.hidden_tag() }}
-        <label for="annotation-text">Add your annotation</label>
-        {{ annotation_form.text(id='annotation-text', placeholder='Write a short annotation for future readers...') }}
-        {{ annotation_form.submit() }}
-      </form>
+      {% if current_user.is_authenticated and current_user.role == 'librarian' %}
+        <form class="review-form" action="{{ url_for('main.book', book_id=book.id) }}" method="post">
+          {{ annotation_form.hidden_tag() }}
+          <label for="annotation-text">Add your annotation</label>
+          {{ annotation_form.text(id='annotation-text', placeholder='Write a short annotation for future readers...') }}
+          {{ annotation_form.submit() }}
+        </form>
+      {% endif %}
 
       <h2 class="section-title">Reviews</h2>
       <div class="review-list">
