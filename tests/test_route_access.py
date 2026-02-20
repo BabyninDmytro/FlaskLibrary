@@ -62,6 +62,30 @@ def test_logout_redirects_to_login_after_authentication(client, user):
     assert '/login' in response.headers['Location']
 
 
+def test_protected_pages_send_no_store_cache_headers(client, user, app):
+    login_response = login(client)
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        book = Book(
+            title='No Cache Book',
+            author_name='Ira',
+            author_surname='N',
+            month='November',
+            year=2024,
+        )
+        db.session.add(book)
+        db.session.commit()
+        book_id = book.id
+
+    response = client.get(f'/book/{book_id}', follow_redirects=False)
+
+    assert response.status_code == 200
+    assert response.headers['Cache-Control'] == 'no-store, no-cache, must-revalidate, max-age=0'
+    assert response.headers['Pragma'] == 'no-cache'
+    assert response.headers['Expires'] == '0'
+
+
 def test_book_route_returns_404_for_missing_book(client):
     response = client.get('/book/999999', follow_redirects=False)
 
