@@ -64,7 +64,7 @@ def load_user(user_id):
     from app.models import Reader
 
     try:
-        return db.session.get(Reader, int(user_id))
+        return db.session.get(Reader, int(user_id), populate_existing=True)
     except OperationalError:
         db.session.rollback()
         return None

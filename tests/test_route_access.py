@@ -171,8 +171,9 @@ def test_book_route_does_not_create_review_for_invalid_stars(client, user, app):
 
 
 
-def test_book_route_can_create_annotation_for_authenticated_user(client, user, app):
-    login_response = login(client)
+def test_book_route_can_create_annotation_for_librarian(client, librarian, app):
+    ensure_guest(client)
+    login_response = login(client, email=librarian)
     assert login_response.status_code == 302
 
     with app.app_context():
@@ -195,11 +196,46 @@ def test_book_route_can_create_annotation_for_authenticated_user(client, user, a
 
     assert response.status_code == 200
     assert b'Add your annotation' in response.data
-    assert b'A compact and useful annotation' not in response.data
 
     with app.app_context():
         stored = Annotation.query.filter_by(book_id=book_id, text='A compact and useful annotation').first()
         assert stored is not None
+
+
+
+def test_book_route_reader_cannot_annotate_and_does_not_see_annotation_form(client, user, app):
+    ensure_guest(client)
+    login_response = login(client)
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        book = Book(
+            title='Reader Cannot Annotate',
+            author_name='Lena',
+            author_surname='P',
+            month='October',
+            year=2024,
+        )
+        db.session.add(book)
+        db.session.commit()
+        book_id = book.id
+
+    page_response = client.get(f'/book/{book_id}', follow_redirects=True)
+    assert page_response.status_code == 200
+    assert b'Add your annotation' not in page_response.data
+
+    post_response = client.post(
+        f'/book/{book_id}',
+        data={'annotation-text': 'Reader annotation attempt', 'annotation-submit': '1'},
+        follow_redirects=False,
+    )
+
+    assert post_response.status_code == 302
+    assert '/home' in post_response.headers['Location']
+
+    with app.app_context():
+        stored = Annotation.query.filter_by(book_id=book_id, text='Reader annotation attempt').first()
+        assert stored is None
 
 
 def test_book_route_redirects_guest_when_posting_annotation(client, app):
@@ -327,3 +363,115 @@ def test_seed_book_read_page_works(client, app):
     assert 'Розділ 1'.encode('utf-8') in response.data
     assert b'id="chapter-1"' in response.data
     assert 'Текст книги'.encode('utf-8') not in response.data
+
+
+def test_hidden_books_are_not_listed_for_regular_readers(client, app, user):
+    login_response = login(client)
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        visible = Book(title='Visible Book', author_name='A', author_surname='A', month='May', year=2024, is_hidden=False)
+        hidden = Book(title='Hidden Book', author_name='B', author_surname='B', month='May', year=2024, is_hidden=True)
+        db.session.add_all([visible, hidden])
+        db.session.commit()
+        hidden_id = hidden.id
+
+    home_response = client.get('/home', follow_redirects=True)
+    assert b'Visible Book' in home_response.data
+    assert b'Hidden Book' not in home_response.data
+
+    hidden_response = client.get(f'/book/{hidden_id}', follow_redirects=False)
+    assert hidden_response.status_code == 302
+    assert '/home' in hidden_response.headers['Location']
+
+
+def test_librarian_can_hide_and_unhide_books(client, app, librarian):
+    ensure_guest(client)
+    login_response = login(client, email=librarian)
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        book = Book(title='Toggle Book', author_name='A', author_surname='A', month='June', year=2024)
+        db.session.add(book)
+        db.session.commit()
+        book_id = book.id
+
+    hide_response = client.post(f'/book/{book_id}/toggle-hidden', follow_redirects=False)
+    assert hide_response.status_code == 302
+    assert '/book/' in hide_response.headers['Location']
+
+    with app.app_context():
+        db.session.remove()
+        reloaded = db.session.get(Book, book_id)
+        assert reloaded.is_hidden is True
+
+    unhide_response = client.post(f'/book/{book_id}/toggle-hidden', follow_redirects=False)
+    assert unhide_response.status_code == 302
+
+    with app.app_context():
+        db.session.remove()
+        reloaded = db.session.get(Book, book_id)
+        assert reloaded.is_hidden is False
+
+
+def test_librarian_can_delete_reviews_and_annotations(client, app, user, librarian):
+    ensure_guest(client)
+    with app.app_context():
+        reader = Reader.query.filter_by(email=user).first()
+        book = Book(title='Moderation Book', author_name='A', author_surname='A', month='July', year=2024)
+        db.session.add(book)
+        db.session.commit()
+
+        review = Review(text='Needs cleanup', stars=2, book_id=book.id, reviewer_id=reader.id)
+        annotation = Annotation(text='Temporary annotation', book_id=book.id, reviewer_id=reader.id)
+        db.session.add_all([review, annotation])
+        db.session.commit()
+        review_id = review.id
+        annotation_id = annotation.id
+
+    login_response = login(client, email=librarian)
+    assert login_response.status_code == 302
+
+    review_response = client.post(f'/reviews/{review_id}/delete', follow_redirects=False)
+    annotation_response = client.post(f'/annotations/{annotation_id}/delete', follow_redirects=False)
+    assert review_response.status_code == 302
+    assert annotation_response.status_code == 302
+    assert '/book/' in review_response.headers['Location']
+
+    with app.app_context():
+        db.session.remove()
+        assert Review.query.filter_by(id=review_id).first() is None
+        assert Annotation.query.filter_by(id=annotation_id).first() is None
+
+
+def test_regular_reader_cannot_moderate_content(client, app, user):
+    with app.app_context():
+        reader = Reader.query.filter_by(email=user).first()
+        book = Book(title='Protected Book', author_name='A', author_surname='A', month='August', year=2024)
+        db.session.add(book)
+        db.session.commit()
+
+        review = Review(text='Should stay', stars=4, book_id=book.id, reviewer_id=reader.id)
+        annotation = Annotation(text='Should also stay', book_id=book.id, reviewer_id=reader.id)
+        db.session.add_all([review, annotation])
+        db.session.commit()
+        review_id = review.id
+        annotation_id = annotation.id
+        book_id = book.id
+
+    login_response = login(client)
+    assert login_response.status_code == 302
+
+    hide_response = client.post(f'/book/{book_id}/toggle-hidden', follow_redirects=False)
+    review_response = client.post(f'/reviews/{review_id}/delete', follow_redirects=False)
+    annotation_response = client.post(f'/annotations/{annotation_id}/delete', follow_redirects=False)
+
+    assert hide_response.status_code == 302
+    assert review_response.status_code == 302
+    assert annotation_response.status_code == 302
+
+    with app.app_context():
+        db.session.remove()
+        assert db.session.get(Book, book_id).is_hidden is False
+        assert Review.query.filter_by(id=review_id).first() is not None
+        assert Annotation.query.filter_by(id=annotation_id).first() is not None
