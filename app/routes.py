@@ -158,6 +158,9 @@ def book(book_id):
             flash('Please log in to add an annotation.', 'error')
             return redirect(url_for('main.login'))
 
+        if not _is_librarian(current_user):
+            return redirect(url_for('main.home'))
+
         annotation = Annotation(text=annotation_form.text.data.strip(), book_id=book.id, reviewer_id=current_user.id)
         db.session.add(annotation)
         db.session.commit()

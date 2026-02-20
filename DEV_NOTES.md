@@ -2,6 +2,8 @@
 
 
 ## 2026-02-20
+- Follow-up UX: кнопку `Hide/Unhide book` на сторінці книги перенесено з верхнього header-блоку в картку книги (поруч із кнопкою `Read now`).
+- Обмежено створення анотацій: форму `Add your annotation` бачить і може submit-ити тільки `librarian`; для звичайного `reader` форма прихована, а POST-спроба створення анотації редіректить на `/home` без запису в БД.
 - Для моделі `Book` додано прапорець `is_hidden` (default `False`) для підтримки приховування книг бібліотекарем.
 - Додано рольову перевірку `librarian` у роутингу: звичайні читачі не бачать приховані книги у `/home` та `/books/<year>`, а також не можуть відкривати `/book/<id>` і `/book/<id>/read` для прихованих книг.
 - Реалізовано moderation-маршрути для `Librarian`: `POST /book/<id>/toggle-hidden`, `POST /reviews/<id>/delete`, `POST /annotations/<id>/delete`.
