@@ -63,22 +63,59 @@ def test_logout_redirects_to_login_after_authentication(client, user):
     assert '/login' in response.headers['Location']
 
 
-def test_book_route_returns_404_for_missing_book(client):
+def test_protected_pages_send_no_store_cache_headers(client, user, app):
+    login_response = login(client)
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        book = Book(
+            title='No Cache Book',
+            author_name='Ira',
+            author_surname='N',
+            month='November',
+            year=2024,
+        )
+        db.session.add(book)
+        db.session.commit()
+        book_id = book.id
+
+    response = client.get(f'/book/{book_id}', follow_redirects=False)
+
+    assert response.status_code == 200
+    assert response.headers['Cache-Control'] == 'no-store, no-cache, must-revalidate, max-age=0'
+    assert response.headers['Pragma'] == 'no-cache'
+    assert response.headers['Expires'] == '0'
+
+
+
+
+def test_public_login_page_is_not_marked_no_store(client):
+    ensure_guest(client)
+
+    response = client.get('/login', follow_redirects=False)
+
+    assert response.status_code == 200
+    assert response.headers.get('Cache-Control') != 'no-store, no-cache, must-revalidate, max-age=0'
+
+def test_book_route_redirects_guest_for_missing_book(client):
     response = client.get('/book/999999', follow_redirects=False)
 
-    assert response.status_code == 404
+    assert response.status_code == 302
+    assert '/login' in response.headers['Location']
 
 
-def test_profile_route_returns_404_for_missing_user(client):
+def test_profile_route_redirects_guest_for_missing_user(client):
     response = client.get('/profile/999999', follow_redirects=False)
 
-    assert response.status_code == 404
+    assert response.status_code == 302
+    assert '/login' in response.headers['Location']
 
 
-def test_reviews_route_returns_404_for_missing_review(client):
+def test_reviews_route_redirects_guest_for_missing_review(client):
     response = client.get('/reviews/999999', follow_redirects=False)
 
-    assert response.status_code == 404
+    assert response.status_code == 302
+    assert '/login' in response.headers['Location']
 
 
 def test_book_route_can_create_review_for_authenticated_user(client, user, app):
@@ -172,8 +209,9 @@ def test_book_route_does_not_create_review_for_invalid_stars(client, user, app):
 
 
 
-def test_book_route_can_create_annotation_for_authenticated_user(client, user, app):
-    login_response = login(client)
+def test_book_route_can_create_annotation_for_librarian(client, librarian, app):
+    ensure_guest(client)
+    login_response = login(client, email=librarian)
     assert login_response.status_code == 302
 
     with app.app_context():
@@ -196,11 +234,46 @@ def test_book_route_can_create_annotation_for_authenticated_user(client, user, a
 
     assert response.status_code == 200
     assert b'Add your annotation' in response.data
-    assert b'A compact and useful annotation' not in response.data
 
     with app.app_context():
         stored = Annotation.query.filter_by(book_id=book_id, text='A compact and useful annotation').first()
         assert stored is not None
+
+
+
+def test_book_route_reader_cannot_annotate_and_does_not_see_annotation_form(client, user, app):
+    ensure_guest(client)
+    login_response = login(client)
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        book = Book(
+            title='Reader Cannot Annotate',
+            author_name='Lena',
+            author_surname='P',
+            month='October',
+            year=2024,
+        )
+        db.session.add(book)
+        db.session.commit()
+        book_id = book.id
+
+    page_response = client.get(f'/book/{book_id}', follow_redirects=True)
+    assert page_response.status_code == 200
+    assert b'Add your annotation' not in page_response.data
+
+    post_response = client.post(
+        f'/book/{book_id}',
+        data={'annotation-text': 'Reader annotation attempt', 'annotation-submit': '1'},
+        follow_redirects=False,
+    )
+
+    assert post_response.status_code == 302
+    assert '/home' in post_response.headers['Location']
+
+    with app.app_context():
+        stored = Annotation.query.filter_by(book_id=book_id, text='Reader annotation attempt').first()
+        assert stored is None
 
 
 def test_book_route_redirects_guest_when_posting_annotation(client, app):
@@ -231,10 +304,11 @@ def test_book_route_redirects_guest_when_posting_annotation(client, app):
         assert Annotation.query.filter_by(book_id=book_id, text='Guest note').first() is None
 
 
-def test_book_read_route_returns_404_for_missing_book(client):
+def test_book_read_route_redirects_guest_for_missing_book(client):
     response = client.get('/book/999999/read', follow_redirects=False)
 
-    assert response.status_code == 404
+    assert response.status_code == 302
+    assert '/login' in response.headers['Location']
 
 
 
@@ -328,6 +402,9 @@ def test_book_page_route_remains_html_after_rest_migration(client, app):
 
 
 def test_book_read_route_shows_annotations_in_expected_order(client, app, user):
+    login_response = login(client)
+    assert login_response.status_code == 302
+
     with app.app_context():
         reader = Reader.query.filter_by(email=user).first()
         book = Book(
@@ -370,6 +447,9 @@ def test_book_read_route_shows_annotations_in_expected_order(client, app, user):
 
 
 def test_book_page_shows_read_now_button_and_hides_annotation_feed(client, app, user):
+    login_response = login(client)
+    assert login_response.status_code == 302
+
     with app.app_context():
         reader = Reader.query.filter_by(email=user).first()
         book = Book(
@@ -395,7 +475,10 @@ def test_book_page_shows_read_now_button_and_hides_annotation_feed(client, app, 
 
 
 
-def test_seed_book_read_page_works(client, app):
+def test_seed_book_read_page_works(client, app, user):
+    login_response = login(client)
+    assert login_response.status_code == 302
+
     with app.app_context():
         book = Book(
             id=12,

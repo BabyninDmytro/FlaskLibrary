@@ -84,3 +84,20 @@ def books(app):
         titles = [book.title for book in created]
         db.session.remove()
         return titles
+
+
+@pytest.fixture()
+def librarian(app):
+    with app.app_context():
+        admin = Reader(
+            name='Lib',
+            surname='Admin',
+            email='lib.admin@example.com',
+            role='librarian',
+        )
+        admin.set_password('Secret123!')
+        db.session.add(admin)
+        db.session.commit()
+        email = admin.email
+        db.session.remove()
+        return email

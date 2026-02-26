@@ -14,6 +14,7 @@ class Book(db.Model):
     month = db.Column(db.String(20), index=True, unique=False)
     year = db.Column(db.Integer, index=True, unique=False)
     cover_image = db.Column(db.String(255), nullable=False, default='book_covers/default.svg')
+    is_hidden = db.Column(db.Boolean, nullable=False, default=False, index=True)
     reviews = db.relationship('Review', backref='book', lazy='dynamic', cascade="all, delete, delete-orphan")
     annotations = db.relationship('Annotation', backref='book', lazy='dynamic', cascade="all, delete, delete-orphan")
 

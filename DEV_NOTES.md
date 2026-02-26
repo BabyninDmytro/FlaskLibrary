@@ -38,6 +38,30 @@
 - Повернуто JSON-представлення книги окремим endpoint-ом `GET /api/v1/books/<id>/data`: повертає поля книги, `reviews` та `annotations` для mobile/integrations.
 - Розведено ролі маршрутів: `/api/v1/books/<id>` — HTML сторінка книги (SSR), `/api/v1/books/<id>/data` — JSON-дані книги; додано тести на payload і 404 для JSON endpoint.
 
+## 2026-02-20
+- Відкотили публічний доступ до сторінок `/book/<id>`, `/book/<id>/read`, `/profile/<id>`, `/reviews/<id>`: повернули `@login_required`, щоб незалогінені користувачі не могли відкривати ці маршрути.
+- Додали явний fallback-редірект у цих обробниках: `if not current_user.is_authenticated: return redirect(url_for('main.login'))` (додатковий захист поверх Flask-Login декоратора).
+- Оновили route-access тести під очікувану політику доступу: для гостей перевіряється редірект на `/login`, а сценарії читання сторінки книги виконуються після логіну.
+- Розкрито публічний доступ до сторінок перегляду контенту: знято `@login_required` з `GET`-маршрутів `/book/<id>`, `/book/<id>/read`, `/profile/<id>`, `/reviews/<id>`, щоб гості отримували коректні `404` для неіснуючих ресурсів і могли читати публічні сторінки без авторизації.
+- Авторизація для змін даних збережена: у `/book/<id>` POST-сценарії додавання review/annotation і далі вимагають логін через наявні перевірки в обробнику.
+- Секцію `Annotations` на read-сторінках винесено в спільний partial `templates/book_reads/_annotations_section.html` і підключено через `{% include %}` у всіх `book_*_read.html` та `book_default_read.html`; це прибирає дублювання й спрощує подальші зміни UI/логіки анотацій.
+- Перевірено й прибрано неявне використання `current_user.role` на інших сторінках: шаблони `book.html`, `_review.html` та всі `templates/book_reads/*` переведено на явний прапорець `is_librarian`, який передається з роутів.
+- Оновлено роутинг для явного контексту ролі: `book`, `book_read`, `reviews`, `books/<year>` тепер передають `is_librarian` у `render_template`, щоб шаблони не залежали від глобального `current_user`.
+- Уточнено джерело ролі для `home.html`: тепер роут `/home` явно передає прапорець `is_librarian` у шаблон (замість перевірки `current_user.role` прямо в template), щоб уникнути неявної залежності від глобального контексту.
+- Заголовки anti-cache після logout звужено до автентифікованих запитів: `no-store` тепер виставляється тільки коли `current_user.is_authenticated`, щоб не відключати кешування для публічних сторінок (наприклад, `/login`).
+- Додано тест `test_public_login_page_is_not_marked_no_store` для перевірки, що сторінка входу не маркується `no-store`.
+- Виправлено кешування після logout: у `app.after_request` додано заголовки `Cache-Control: no-store, no-cache, must-revalidate, max-age=0`, `Pragma: no-cache`, `Expires: 0`, щоб кнопка Back не відкривала закешовані захищені сторінки після розлогіну.
+- Додано тест `test_protected_pages_send_no_store_cache_headers`, який перевіряє no-store заголовки для сторінки книги `/book/<id>`.
+- Візуальне доопрацювання `book.html`: прибрано верхню кнопку `Hide/Unhide book`; залишена кнопка біля `Read now` у блоці книги та приведена до того самого розміру, що й `Read now`.
+- Follow-up UX: кнопку `Hide/Unhide book` на сторінці книги перенесено з верхнього header-блоку в картку книги (поруч із кнопкою `Read now`).
+- Обмежено створення анотацій: форму `Add your annotation` бачить і може submit-ити тільки `librarian`; для звичайного `reader` форма прихована, а POST-спроба створення анотації редіректить на `/home` без запису в БД.
+- Для моделі `Book` додано прапорець `is_hidden` (default `False`) для підтримки приховування книг бібліотекарем.
+- Додано рольову перевірку `librarian` у роутингу: звичайні читачі не бачать приховані книги у `/home` та `/books/<year>`, а також не можуть відкривати `/book/<id>` і `/book/<id>/read` для прихованих книг.
+- Реалізовано moderation-маршрути для `Librarian`: `POST /book/<id>/toggle-hidden`, `POST /reviews/<id>/delete`, `POST /annotations/<id>/delete`.
+- Оновлено UI: на `home.html` і `book.html` для бібліотекаря додано кнопки Hide/Unhide; на шаблонах читання (`templates/book_reads/*`) додано кнопки видалення анотацій; у review-блоці додано кнопку видалення коментаря.
+- Додано тестові сценарії для прав бібліотекаря: приховування/показ книг, видалення review/annotation, а також перевірки, що звичайний Reader не може виконувати moderation-дії.
+
+
 ## 2026-02-13
 - Для маршруту `/book/<book_id>/read` додано вибір окремого шаблону за `book_id`: якщо є `templates/book_reads/book_<id>_read.html`, рендериться саме він; для не-seed книг використовується `book_default_read.html`.
 - Додано окремі read-шаблони для seed-книг (`book_12_read.html` ... `book_30_read.html`) зі спрощеним "plain document" стилем (serif, мінімум декоративних елементів).
