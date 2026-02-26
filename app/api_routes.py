@@ -66,24 +66,8 @@ def books_collection():
 def book_details(book_id):
     book = get_book_or_404(book_id)
 
-    reviews = [
-        {
-            'id': review['id'],
-            'stars': review['stars'],
-            'text': review['text'],
-            'reviewer_id': review['reviewer_id'],
-        }
-        for review in [serialize_review(review) for review in list_book_reviews_desc(book)]
-    ]
-
-    annotations = [
-        {
-            'id': annotation['id'],
-            'text': annotation['text'],
-            'reviewer_id': annotation['reviewer_id'],
-        }
-        for annotation in [serialize_annotation(annotation) for annotation in list_book_annotations_desc(book)]
-    ]
+    reviews = [serialize_review(review) for review in list_book_reviews_desc(book)]
+    annotations = [serialize_annotation(annotation) for annotation in list_book_annotations_desc(book)]
 
     payload = serialize_book(book)
     payload['reviews'] = reviews
