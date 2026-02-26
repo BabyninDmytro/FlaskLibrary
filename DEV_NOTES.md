@@ -1,5 +1,42 @@
 # Dev Notes
 
+## 2026-02-26
+- Актуалізовано `REST_API_ASSESSMENT.md`: зафіксовано поточний стан міграції на REST (що вже реалізовано: `/api/v1/*`, mutating endpoint-и, error envelope, OpenAPI) та окремо виділено незакриті пункти й оновлену оцінку зрілості.
+- Перероблено маршрути під зрозуміле розділення SSR/REST для книги: `GET/POST /book/<id>` знову є canonical HTML-сторінкою з усім функціоналом `book()` (review/annotation форми і обробка).
+- Реалізовано REST-представлення книги на `GET /api/v1/books/<id>` та alias `GET /books/<id>` (JSON із полями книги, `reviews`, `annotations`).
+- Залишено backward-compat endpoint `GET /api/v1/books/<id>/data`, який редіректить на `GET /api/v1/books/<id>`.
+- Оновлено тести маршруту книги та API: перевірки HTML-сторінки, JSON payload, 404 та редіректу legacy data endpoint.
+- Роути розділено по відповідальностях у різні модулі: `app/web_routes.py` (SSR/HTML) і `app/api_routes.py` (REST/JSON).
+- У `app/__init__.py` замінено реєстрацію одного blueprint на реєстрацію двох: `main` (web) та `api` (REST).
+- `app/routes.py` залишено як сумісний модуль-обгортку без бізнес-логіки, щоб зафіксувати нову структуру та уникнути подальшого змішування SSR/API в одному файлі.
+- Для уникнення конфлікту API alias із web-сторінками прибрано JSON alias `GET /books/<id>`; canonical JSON endpoint книги — `GET /api/v1/books/<id>`.
+- Повернуто web-маршрут сторінок за роком у `app/web_routes.py`: підтримуються `GET /books/<year>` і `GET /books/year/<year>` (HTML `display_books.html`).
+- Розширено `app/api_routes.py` новими REST endpoint-ами для основних сторінок/ресурсів: `GET /api/v1/books` (collection + search + pagination), `GET /api/v1/books/year/<year>`, `GET /api/v1/readers/<id>`, `GET /api/v1/reviews/<id>`.
+- Для нових API-роутів додано покриття тестами в `tests/test_route_access.py`: collection/year/listing, reader profile, review details, а також 404 кейси для reader/review.
+- Видалено зайві year-сторінки: прибрано web-маршрути `GET /books/<year>` і `GET /books/year/<year>` та видалено шаблони `templates/input_year.html` і `templates/display_books.html`.
+- Прибрано REST endpoint `GET /api/v1/books/year/<year>` з `app/api_routes.py`; залишено базові ресурси `/api/v1/books`, `/api/v1/books/<id>`, `/api/v1/readers/<id>`, `/api/v1/reviews/<id>`.
+- Додано write-операції REST API для модерації власного контенту: `PATCH/DELETE /api/v1/reviews/<id>` та `PATCH/DELETE /api/v1/annotations/<id>`.
+- Для нових mutating endpoint-ів реалізовано JSON-помилки з кодами `400/401/403/404/422` і покрито тестами сценарії auth/ownership/validation/success.
+- Реалізовано канонічні mutating endpoint-и REST: `PATCH/DELETE /api/v1/reviews/<id>` і `PATCH/DELETE /api/v1/annotations/<id>` із JSON-відповідями та кодами `200/204/400/401/403/404/422`.
+- Винесено спільну бізнес-логіку в сервісний шар: `app/services/book_service.py`, `app/services/review_service.py`, `app/services/annotation_service.py`.
+- `app/web_routes.py` і `app/api_routes.py` переведено на виклики сервісів замість прямого дублювання запитів до БД у маршрутах.
+- Додано `POST /api/v1/books/<id>/reviews` і `POST /api/v1/books/<id>/annotations` з валідацією та статусами `201/401/422`.
+- Уніфіковано JSON error envelope для API через обробник `HTTPException` у `app/api_routes.py` (включно з 404 для read endpoint-ів).
+- Додано мінімальну OpenAPI-специфікацію у файлі `openapi.yaml` для основних існуючих endpoint-ів `/api/v1/*`.
+- Додано `app/services/reader_service.py` для уніфікації роботи з Reader (отримання по `id`/`email` і серіалізація).
+- Прибрано локальний імпорт `Review` всередині `reviews()` у `app/web_routes.py`: тепер web/api роутери використовують сервіси замість імпортів у тілі функцій.
+
+## 2026-02-25
+- У `REST_API_ASSESSMENT.md` додано роз'яснення до пункту про REST gap "HTML templates vs JSON": пояснено, чому SSR-відповіді коректні для браузера, але не формують стабільний API-контракт для mobile/integrations.
+- Додано приклад різниці між HTML endpoint (`GET /book/12`) та API endpoint (`GET /api/v1/books/12`) для зняття неоднозначності в рев'ю.
+- Уточнено гібридний підхід у `REST_API_ASSESSMENT.md`: `GET /book/<id>` та `GET /book/<id>/read` залишаються HTML-first, тоді як каталог/профілі/операції review+annotation можуть додаватися через `/api/v1/*` для mobile/integrations.
+- Реалізовано REST endpoint `GET /api/v1/books/<id>` у `app/routes.py`: повертає JSON з полями книги, списком `reviews` і `annotations`; HTML сторінка `/book/<id>` залишилась без змін.
+- Додано тести для API-деталей книги: перевірка JSON payload для існуючої книги та `404` для неіснуючої (`tests/test_route_access.py`).
+- Основний роут сторінки книги перенесено з `/book/<id>` на `/api/v1/books/<id>` (тепер саме він рендерить `book.html` і обробляє POST для review/annotation).
+- Додано legacy-redirect `GET/POST /book/<id> -> /api/v1/books/<id>` (301), щоб старі посилання не ламались під час переходу.
+- Тести `tests/test_route_access.py` оновлено під новий canonical route книги (`/api/v1/books/<id>`) та перевірку редіректу зі старого шляху.
+- Повернуто JSON-представлення книги окремим endpoint-ом `GET /api/v1/books/<id>/data`: повертає поля книги, `reviews` та `annotations` для mobile/integrations.
+- Розведено ролі маршрутів: `/api/v1/books/<id>` — HTML сторінка книги (SSR), `/api/v1/books/<id>/data` — JSON-дані книги; додано тести на payload і 404 для JSON endpoint.
 
 ## 2026-02-20
 - Відкотили публічний доступ до сторінок `/book/<id>`, `/book/<id>/read`, `/profile/<id>`, `/reviews/<id>`: повернули `@login_required`, щоб незалогінені користувачі не могли відкривати ці маршрути.

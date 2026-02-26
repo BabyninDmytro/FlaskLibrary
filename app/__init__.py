@@ -49,9 +49,11 @@ def create_app(test_config=None):
     login_manager.init_app(app)
 
     from app import models  # noqa: E402,F401
-    from app.routes import bp  # noqa: E402
+    from app.web_routes import bp as web_bp  # noqa: E402
+    from app.api_routes import bp as api_bp  # noqa: E402
 
-    app.register_blueprint(bp)
+    app.register_blueprint(web_bp)
+    app.register_blueprint(api_bp)
 
     @app.after_request
     def add_no_store_headers(response):

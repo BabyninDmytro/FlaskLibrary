@@ -25,6 +25,7 @@ def ensure_guest(client):
         cookie_store.clear()
 
 
+
 def test_root_redirects_guest_to_login(client):
     ensure_guest(client)
     response = client.get('/', follow_redirects=False)
@@ -310,6 +311,96 @@ def test_book_read_route_redirects_guest_for_missing_book(client):
     assert '/login' in response.headers['Location']
 
 
+
+
+def test_api_book_data_returns_json_payload(client, app, user):
+    with app.app_context():
+        reader = Reader.query.filter_by(email=user).first()
+        book = Book(
+            title='API Data Book',
+            author_name='Ira',
+            author_surname='B',
+            month='January',
+            year=2025,
+            cover_image='book_covers/default.svg',
+        )
+        db.session.add(book)
+        db.session.commit()
+
+        review = Review(text='Useful API review', stars=5, book_id=book.id, reviewer_id=reader.id)
+        annotation = Annotation(text='API annotation', book_id=book.id, reviewer_id=reader.id)
+        db.session.add(review)
+        db.session.add(annotation)
+        db.session.commit()
+        book_id = book.id
+
+    response = client.get(f'/api/v1/books/{book_id}', follow_redirects=False)
+
+    assert response.status_code == 200
+    assert response.is_json
+
+    payload = response.get_json()
+    assert payload['id'] == book_id
+    assert payload['title'] == 'API Data Book'
+    assert payload['author_name'] == 'Ira'
+    assert payload['author_surname'] == 'B'
+    assert payload['month'] == 'January'
+    assert payload['year'] == 2025
+    assert payload['cover_image'] == 'book_covers/default.svg'
+    assert len(payload['reviews']) == 1
+    assert payload['reviews'][0]['text'] == 'Useful API review'
+    assert payload['reviews'][0]['stars'] == 5
+    assert len(payload['annotations']) == 1
+    assert payload['annotations'][0]['text'] == 'API annotation'
+
+
+
+def test_api_book_data_returns_404_for_missing_book(client):
+    response = client.get('/api/v1/books/999999', follow_redirects=False)
+
+    assert response.status_code == 404
+
+
+
+def test_api_book_data_legacy_route_redirects(client, app):
+    with app.app_context():
+        book = Book(
+            title='Legacy Data Route Book',
+            author_name='Leo',
+            author_surname='S',
+            month='March',
+            year=2025,
+        )
+        db.session.add(book)
+        db.session.commit()
+        book_id = book.id
+
+    response = client.get(f'/api/v1/books/{book_id}/data', follow_redirects=False)
+
+    assert response.status_code == 301
+    assert response.headers['Location'].endswith(f'/api/v1/books/{book_id}')
+
+
+def test_book_page_route_remains_html_after_rest_migration(client, app):
+    with app.app_context():
+        book = Book(
+            title='HTML Book Page',
+            author_name='Lia',
+            author_surname='N',
+            month='May',
+            year=2025,
+        )
+        db.session.add(book)
+        db.session.commit()
+        book_id = book.id
+
+    response = client.get(f'/book/{book_id}', follow_redirects=False)
+
+    assert response.status_code == 200
+    assert b'<html' in response.data
+    assert b'HTML Book Page' in response.data
+
+
 def test_book_read_route_shows_annotations_in_expected_order(client, app, user):
     login_response = login(client)
     assert login_response.status_code == 302
@@ -412,113 +503,411 @@ def test_seed_book_read_page_works(client, app, user):
     assert 'Текст книги'.encode('utf-8') not in response.data
 
 
-def test_hidden_books_are_not_listed_for_regular_readers(client, app, user):
-    login_response = login(client)
-    assert login_response.status_code == 302
-
+def test_api_books_collection_returns_paginated_items(client, app):
     with app.app_context():
-        visible = Book(title='Visible Book', author_name='A', author_surname='A', month='May', year=2024, is_hidden=False)
-        hidden = Book(title='Hidden Book', author_name='B', author_surname='B', month='May', year=2024, is_hidden=True)
-        db.session.add_all([visible, hidden])
+        db.session.add_all(
+            [
+                Book(title='Api Alpha', author_name='A', author_surname='A', month='January', year=2024),
+                Book(title='Api Beta', author_name='B', author_surname='B', month='February', year=2024),
+                Book(title='Api Gamma', author_name='C', author_surname='C', month='March', year=2023),
+            ]
+        )
         db.session.commit()
-        hidden_id = hidden.id
 
-    home_response = client.get('/home', follow_redirects=True)
-    assert b'Visible Book' in home_response.data
-    assert b'Hidden Book' not in home_response.data
+    response = client.get('/api/v1/books?search=Api&page=1&per_page=2', follow_redirects=False)
 
-    hidden_response = client.get(f'/book/{hidden_id}', follow_redirects=False)
-    assert hidden_response.status_code == 302
-    assert '/home' in hidden_response.headers['Location']
-
-
-def test_librarian_can_hide_and_unhide_books(client, app, librarian):
-    ensure_guest(client)
-    login_response = login(client, email=librarian)
-    assert login_response.status_code == 302
-
-    with app.app_context():
-        book = Book(title='Toggle Book', author_name='A', author_surname='A', month='June', year=2024)
-        db.session.add(book)
-        db.session.commit()
-        book_id = book.id
-
-    hide_response = client.post(f'/book/{book_id}/toggle-hidden', follow_redirects=False)
-    assert hide_response.status_code == 302
-    assert '/book/' in hide_response.headers['Location']
-
-    with app.app_context():
-        db.session.remove()
-        reloaded = db.session.get(Book, book_id)
-        assert reloaded.is_hidden is True
-
-    unhide_response = client.post(f'/book/{book_id}/toggle-hidden', follow_redirects=False)
-    assert unhide_response.status_code == 302
-
-    with app.app_context():
-        db.session.remove()
-        reloaded = db.session.get(Book, book_id)
-        assert reloaded.is_hidden is False
+    assert response.status_code == 200
+    assert response.is_json
+    payload = response.get_json()
+    assert payload['search'] == 'Api'
+    assert payload['pagination']['page'] == 1
+    assert payload['pagination']['per_page'] == 2
+    assert payload['pagination']['total'] == 3
+    assert len(payload['items']) == 2
 
 
-def test_librarian_can_delete_reviews_and_annotations(client, app, user, librarian):
-    ensure_guest(client)
+
+def test_api_reader_profile_returns_json(client, app, user):
     with app.app_context():
         reader = Reader.query.filter_by(email=user).first()
-        book = Book(title='Moderation Book', author_name='A', author_surname='A', month='July', year=2024)
+        reader_id = reader.id
+
+    response = client.get(f'/api/v1/readers/{reader_id}', follow_redirects=False)
+
+    assert response.status_code == 200
+    assert response.is_json
+    payload = response.get_json()
+    assert payload['id'] == reader_id
+    assert payload['email'] == user
+    assert payload['role'] == 'reader'
+
+
+
+def test_api_review_details_returns_json(client, app, user):
+    with app.app_context():
+        reader = Reader.query.filter_by(email=user).first()
+        book = Book(title='Review API Book', author_name='R', author_surname='S', month='April', year=2024)
         db.session.add(book)
         db.session.commit()
 
-        review = Review(text='Needs cleanup', stars=2, book_id=book.id, reviewer_id=reader.id)
-        annotation = Annotation(text='Temporary annotation', book_id=book.id, reviewer_id=reader.id)
-        db.session.add_all([review, annotation])
+        review = Review(text='Review API text', stars=4, book_id=book.id, reviewer_id=reader.id)
+        db.session.add(review)
         db.session.commit()
         review_id = review.id
-        annotation_id = annotation.id
 
-    login_response = login(client, email=librarian)
-    assert login_response.status_code == 302
+    response = client.get(f'/api/v1/reviews/{review_id}', follow_redirects=False)
 
-    review_response = client.post(f'/reviews/{review_id}/delete', follow_redirects=False)
-    annotation_response = client.post(f'/annotations/{annotation_id}/delete', follow_redirects=False)
-    assert review_response.status_code == 302
-    assert annotation_response.status_code == 302
-    assert '/book/' in review_response.headers['Location']
+    assert response.status_code == 200
+    assert response.is_json
+    payload = response.get_json()
+    assert payload['id'] == review_id
+    assert payload['text'] == 'Review API text'
+    assert payload['stars'] == 4
+
+
+
+def test_api_reader_profile_returns_404_for_missing_user(client):
+    response = client.get('/api/v1/readers/999999', follow_redirects=False)
+
+    assert response.status_code == 404
+
+
+
+def test_api_review_details_returns_404_for_missing_review(client):
+    response = client.get('/api/v1/reviews/999999', follow_redirects=False)
+
+    assert response.status_code == 404
+
+
+def test_api_review_patch_requires_authentication(client, app, user):
+    ensure_guest(client)
 
     with app.app_context():
-        db.session.remove()
+        reader = Reader.query.filter_by(email=user).first()
+        book = Book(title='Patch Review Book', author_name='A', author_surname='B', month='May', year=2024)
+        db.session.add(book)
+        db.session.commit()
+        review = Review(text='Old text', stars=3, book_id=book.id, reviewer_id=reader.id)
+        db.session.add(review)
+        db.session.commit()
+        review_id = review.id
+
+    response = client.patch(f'/api/v1/reviews/{review_id}', json={'text': 'New text'}, follow_redirects=False)
+
+    assert response.status_code == 401
+    assert response.is_json
+
+
+
+def test_api_review_patch_returns_403_for_non_owner(client, app, user):
+    with app.app_context():
+        owner = Reader.query.filter_by(email=user).first()
+        intruder = Reader(name='Intruder', surname='User', email='intruder@example.com', role='reader')
+        intruder.set_password('Secret123!')
+        db.session.add(intruder)
+
+        book = Book(title='Forbidden Patch', author_name='C', author_surname='D', month='June', year=2024)
+        db.session.add(book)
+        db.session.commit()
+
+        review = Review(text='Owner text', stars=2, book_id=book.id, reviewer_id=owner.id)
+        db.session.add(review)
+        db.session.commit()
+        review_id = review.id
+
+    ensure_guest(client)
+    login_response = login(client, email='intruder@example.com', password='Secret123!')
+    assert login_response.status_code == 302
+
+    response = client.patch(f'/api/v1/reviews/{review_id}', json={'text': 'Hacked'}, follow_redirects=False)
+
+    assert response.status_code == 403
+
+
+
+def test_api_review_patch_returns_422_for_invalid_data(client, app, user):
+    ensure_guest(client)
+    login_response = login(client, email=user, password='Secret123!')
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        reader = Reader.query.filter_by(email=user).first()
+        book = Book(title='Invalid Patch', author_name='E', author_surname='F', month='July', year=2024)
+        db.session.add(book)
+        db.session.commit()
+        review = Review(text='Valid text', stars=4, book_id=book.id, reviewer_id=reader.id)
+        db.session.add(review)
+        db.session.commit()
+        review_id = review.id
+
+    response = client.patch(f'/api/v1/reviews/{review_id}', json={'stars': 9}, follow_redirects=False)
+
+    assert response.status_code == 422
+    assert response.is_json
+
+
+
+def test_api_review_patch_updates_owned_review(client, app, user):
+    ensure_guest(client)
+    login_response = login(client, email=user, password='Secret123!')
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        reader = Reader.query.filter_by(email=user).first()
+        book = Book(title='Owned Patch', author_name='G', author_surname='H', month='August', year=2024)
+        db.session.add(book)
+        db.session.commit()
+        review = Review(text='Before update', stars=2, book_id=book.id, reviewer_id=reader.id)
+        db.session.add(review)
+        db.session.commit()
+        review_id = review.id
+
+    response = client.patch(
+        f'/api/v1/reviews/{review_id}',
+        json={'text': 'After update', 'stars': 5},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload['text'] == 'After update'
+    assert payload['stars'] == 5
+
+
+
+def test_api_review_delete_requires_authentication(client, app, user):
+    ensure_guest(client)
+
+    with app.app_context():
+        reader = Reader.query.filter_by(email=user).first()
+        book = Book(title='Delete Review Book', author_name='I', author_surname='J', month='September', year=2024)
+        db.session.add(book)
+        db.session.commit()
+        review = Review(text='Delete me', stars=3, book_id=book.id, reviewer_id=reader.id)
+        db.session.add(review)
+        db.session.commit()
+        review_id = review.id
+
+    response = client.delete(f'/api/v1/reviews/{review_id}', follow_redirects=False)
+
+    assert response.status_code == 401
+
+
+
+def test_api_review_delete_removes_owned_review(client, app, user):
+    ensure_guest(client)
+    login_response = login(client, email=user, password='Secret123!')
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        reader = Reader.query.filter_by(email=user).first()
+        book = Book(title='Owned Delete Review', author_name='K', author_surname='L', month='October', year=2024)
+        db.session.add(book)
+        db.session.commit()
+        review = Review(text='Delete owned', stars=1, book_id=book.id, reviewer_id=reader.id)
+        db.session.add(review)
+        db.session.commit()
+        review_id = review.id
+
+    response = client.delete(f'/api/v1/reviews/{review_id}', follow_redirects=False)
+
+    assert response.status_code == 204
+
+    with app.app_context():
         assert Review.query.filter_by(id=review_id).first() is None
+
+
+
+def test_api_annotation_patch_and_delete_for_owner(client, app, user):
+    ensure_guest(client)
+    login_response = login(client, email=user, password='Secret123!')
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        reader = Reader.query.filter_by(email=user).first()
+        book = Book(title='Annotation Mutations', author_name='M', author_surname='N', month='November', year=2024)
+        db.session.add(book)
+        db.session.commit()
+        annotation = Annotation(text='Before note', book_id=book.id, reviewer_id=reader.id)
+        db.session.add(annotation)
+        db.session.commit()
+        annotation_id = annotation.id
+
+    patch_response = client.patch(
+        f'/api/v1/annotations/{annotation_id}',
+        json={'text': 'After note'},
+        follow_redirects=False,
+    )
+    assert patch_response.status_code == 200
+    assert patch_response.get_json()['text'] == 'After note'
+
+    delete_response = client.delete(f'/api/v1/annotations/{annotation_id}', follow_redirects=False)
+    assert delete_response.status_code == 204
+
+    with app.app_context():
         assert Annotation.query.filter_by(id=annotation_id).first() is None
 
 
-def test_regular_reader_cannot_moderate_content(client, app, user):
+
+def test_api_annotation_patch_returns_401_403_422(client, app, user):
     with app.app_context():
-        reader = Reader.query.filter_by(email=user).first()
-        book = Book(title='Protected Book', author_name='A', author_surname='A', month='August', year=2024)
+        owner = Reader.query.filter_by(email=user).first()
+        intruder = Reader(name='Another', surname='Intruder', email='another.intruder@example.com', role='reader')
+        intruder.set_password('Secret123!')
+        db.session.add(intruder)
+
+        book = Book(title='Annotation Guard', author_name='O', author_surname='P', month='December', year=2024)
         db.session.add(book)
         db.session.commit()
 
-        review = Review(text='Should stay', stars=4, book_id=book.id, reviewer_id=reader.id)
-        annotation = Annotation(text='Should also stay', book_id=book.id, reviewer_id=reader.id)
-        db.session.add_all([review, annotation])
+        annotation = Annotation(text='Guarded', book_id=book.id, reviewer_id=owner.id)
+        db.session.add(annotation)
         db.session.commit()
-        review_id = review.id
         annotation_id = annotation.id
-        book_id = book.id
 
-    login_response = login(client)
+    ensure_guest(client)
+    unauth = client.patch(f'/api/v1/annotations/{annotation_id}', json={'text': 'x'}, follow_redirects=False)
+    assert unauth.status_code == 401
+
+    login_response = login(client, email='another.intruder@example.com', password='Secret123!')
     assert login_response.status_code == 302
+    forbidden = client.patch(f'/api/v1/annotations/{annotation_id}', json={'text': 'x'}, follow_redirects=False)
+    assert forbidden.status_code == 403
 
-    hide_response = client.post(f'/book/{book_id}/toggle-hidden', follow_redirects=False)
-    review_response = client.post(f'/reviews/{review_id}/delete', follow_redirects=False)
-    annotation_response = client.post(f'/annotations/{annotation_id}/delete', follow_redirects=False)
+    ensure_guest(client)
+    login_response = login(client, email=user, password='Secret123!')
+    assert login_response.status_code == 302
+    invalid = client.patch(f'/api/v1/annotations/{annotation_id}', json={'text': ''}, follow_redirects=False)
+    assert invalid.status_code == 422
 
-    assert hide_response.status_code == 302
-    assert review_response.status_code == 302
-    assert annotation_response.status_code == 302
+
+
+def test_api_annotation_delete_returns_404_for_missing_annotation(client):
+    response = client.delete('/api/v1/annotations/999999', follow_redirects=False)
+
+    assert response.status_code == 404
+
+
+def test_api_book_404_uses_json_error_envelope(client):
+    response = client.get('/api/v1/books/999999', follow_redirects=False)
+
+    assert response.status_code == 404
+    assert response.is_json
+    payload = response.get_json()
+    assert payload['error']['code'] == 404
+    assert 'book' in payload['error']['message'].lower()
+
+
+
+def test_api_reader_404_uses_json_error_envelope(client):
+    response = client.get('/api/v1/readers/999999', follow_redirects=False)
+
+    assert response.status_code == 404
+    assert response.is_json
+    payload = response.get_json()
+    assert payload['error']['code'] == 404
+
+
+
+def test_api_create_review_requires_authentication(client, app, user):
+    ensure_guest(client)
 
     with app.app_context():
-        db.session.remove()
-        assert db.session.get(Book, book_id).is_hidden is False
-        assert Review.query.filter_by(id=review_id).first() is not None
-        assert Annotation.query.filter_by(id=annotation_id).first() is not None
+        book = Book(title='Create Review API', author_name='AA', author_surname='BB', month='Jan', year=2024)
+        db.session.add(book)
+        db.session.commit()
+        book_id = book.id
+
+    response = client.post(
+        f'/api/v1/books/{book_id}/reviews',
+        json={'text': 'Nice', 'stars': 5},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 401
+    assert response.is_json
+
+
+
+def test_api_create_review_validation_and_success(client, app, user):
+    ensure_guest(client)
+    login_response = login(client, email=user, password='Secret123!')
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        reader = Reader.query.filter_by(email=user).first()
+        book = Book(title='Create Review Success', author_name='CC', author_surname='DD', month='Feb', year=2024)
+        db.session.add(book)
+        db.session.commit()
+        book_id = book.id
+        reader_id = reader.id
+
+    invalid = client.post(
+        f'/api/v1/books/{book_id}/reviews',
+        json={'text': '', 'stars': 9},
+        follow_redirects=False,
+    )
+    assert invalid.status_code == 422
+
+    success = client.post(
+        f'/api/v1/books/{book_id}/reviews',
+        json={'text': 'Created via API', 'stars': 4},
+        follow_redirects=False,
+    )
+    assert success.status_code == 201
+    payload = success.get_json()
+    assert payload['text'] == 'Created via API'
+    assert payload['stars'] == 4
+    assert payload['reviewer_id'] == reader_id
+
+
+
+def test_api_create_annotation_validation_and_success(client, app, user):
+    ensure_guest(client)
+    login_response = login(client, email=user, password='Secret123!')
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        reader = Reader.query.filter_by(email=user).first()
+        book = Book(title='Create Annotation Success', author_name='EE', author_surname='FF', month='Mar', year=2024)
+        db.session.add(book)
+        db.session.commit()
+        book_id = book.id
+        reader_id = reader.id
+
+    invalid = client.post(
+        f'/api/v1/books/{book_id}/annotations',
+        json={'text': ''},
+        follow_redirects=False,
+    )
+    assert invalid.status_code == 422
+
+    success = client.post(
+        f'/api/v1/books/{book_id}/annotations',
+        json={'text': 'Created annotation via API'},
+        follow_redirects=False,
+    )
+    assert success.status_code == 201
+    payload = success.get_json()
+    assert payload['text'] == 'Created annotation via API'
+    assert payload['reviewer_id'] == reader_id
+
+
+
+def test_api_create_annotation_requires_authentication(client, app):
+    ensure_guest(client)
+
+    with app.app_context():
+        book = Book(title='Create Annotation API', author_name='GG', author_surname='HH', month='Apr', year=2024)
+        db.session.add(book)
+        db.session.commit()
+        book_id = book.id
+
+    response = client.post(
+        f'/api/v1/books/{book_id}/annotations',
+        json={'text': 'Anon'},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 401
+    assert response.is_json

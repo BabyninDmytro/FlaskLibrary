@@ -1,0 +1,152 @@
+openapi: 3.0.3
+info:
+  title: FlaskLibrary API
+  version: 1.0.0
+servers:
+  - url: /
+paths:
+  /api/v1/books:
+    get:
+      summary: List books
+      parameters:
+        - in: query
+          name: search
+          schema: { type: string }
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: per_page
+          schema: { type: integer, minimum: 1, maximum: 50, default: 10 }
+      responses:
+        '200':
+          description: Book list
+  /api/v1/books/{book_id}:
+    get:
+      summary: Get book details
+      parameters:
+        - in: path
+          name: book_id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Book details }
+        '404': { description: Not found }
+  /api/v1/books/{book_id}/reviews:
+    post:
+      summary: Create review for a book
+      parameters:
+        - in: path
+          name: book_id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text, stars]
+              properties:
+                text: { type: string }
+                stars: { type: integer, minimum: 1, maximum: 5 }
+      responses:
+        '201': { description: Created }
+        '401': { description: Unauthorized }
+        '422': { description: Validation failed }
+  /api/v1/books/{book_id}/annotations:
+    post:
+      summary: Create annotation for a book
+      parameters:
+        - in: path
+          name: book_id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text: { type: string }
+      responses:
+        '201': { description: Created }
+        '401': { description: Unauthorized }
+        '422': { description: Validation failed }
+  /api/v1/reviews/{review_id}:
+    get:
+      summary: Get review details
+      parameters:
+        - in: path
+          name: review_id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Review details }
+        '404': { description: Not found }
+    patch:
+      summary: Update own review
+      parameters:
+        - in: path
+          name: review_id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Updated }
+        '400': { description: Bad request }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not found }
+        '422': { description: Validation failed }
+    delete:
+      summary: Delete own review
+      parameters:
+        - in: path
+          name: review_id
+          required: true
+          schema: { type: integer }
+      responses:
+        '204': { description: Deleted }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not found }
+  /api/v1/annotations/{annotation_id}:
+    patch:
+      summary: Update own annotation
+      parameters:
+        - in: path
+          name: annotation_id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Updated }
+        '400': { description: Bad request }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not found }
+        '422': { description: Validation failed }
+    delete:
+      summary: Delete own annotation
+      parameters:
+        - in: path
+          name: annotation_id
+          required: true
+          schema: { type: integer }
+      responses:
+        '204': { description: Deleted }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not found }
+  /api/v1/readers/{user_id}:
+    get:
+      summary: Get reader profile
+      parameters:
+        - in: path
+          name: user_id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Reader profile }
+        '404': { description: Not found }
