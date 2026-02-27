@@ -1,3 +1,5 @@
+from sqlalchemy import func, select
+
 from app.extensions import db
 from app.models import Annotation, Book, Reader, Review
 
@@ -27,14 +29,14 @@ def test_deleting_book_cascades_to_reviews_and_annotations(app):
         db.session.add_all([review, annotation])
         db.session.commit()
 
-        assert Review.query.filter_by(book_id=book.id).count() == 1
-        assert Annotation.query.filter_by(book_id=book.id).count() == 1
+        assert db.session.scalar(select(func.count()).select_from(Review).filter_by(book_id=book.id)) == 1
+        assert db.session.scalar(select(func.count()).select_from(Annotation).filter_by(book_id=book.id)) == 1
 
         db.session.delete(book)
         db.session.commit()
 
-        assert Review.query.filter_by(book_id=book.id).count() == 0
-        assert Annotation.query.filter_by(book_id=book.id).count() == 0
+        assert db.session.scalar(select(func.count()).select_from(Review).filter_by(book_id=book.id)) == 0
+        assert db.session.scalar(select(func.count()).select_from(Annotation).filter_by(book_id=book.id)) == 0
 
 
 def test_book_has_default_cover_image(app):
@@ -49,5 +51,5 @@ def test_book_has_default_cover_image(app):
         db.session.add(book)
         db.session.commit()
 
-        saved = Book.query.filter_by(id=book.id).first()
+        saved = db.session.scalar(select(Book).filter_by(id=book.id))
         assert saved.cover_image == 'book_covers/default.svg'
