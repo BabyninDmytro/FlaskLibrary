@@ -100,6 +100,7 @@ def reviews(review_id):
 
 
 @bp.route('/book/<int:book_id>', methods=['GET', 'POST'])
+@login_required
 def book(book_id):
     try:
         book = get_book_or_404(book_id)
@@ -148,6 +149,7 @@ def book(book_id):
 
 
 @bp.route('/book/<int:book_id>/read')
+@login_required
 def book_read(book_id):
     try:
         book = get_book_or_404(book_id)

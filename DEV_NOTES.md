@@ -134,3 +134,6 @@
 Notes:
 - `pytest.ini` already points test discovery to `tests/`.
 - `tests/conftest.py` creates an isolated sqlite test database and cleans tables before each test.
+
+## 2026-02-27
+- Оновлено `README.md`: додано актуальний опис можливостей FlaskLibrary, структуру проєкту, інструкції запуску, запуску тестів та посилання на API-документацію.
