@@ -259,7 +259,7 @@
             <a href="{{ url_for('main.book', book_id=book.id) }}">{{ book.title }}</a>
             {% if book.is_hidden %}<span class="hidden-badge">Hidden</span>{% endif %}
             {% if is_librarian %}
-              <form class="admin-inline-form" action="{{ url_for('main.toggle_book_hidden', book_id=book.id) }}" method="post">
+              <form class="admin-inline-form js-toggle-hidden-form" action="{{ url_for('main.toggle_book_hidden', book_id=book.id) }}" method="post" data-book-id="{{ book.id }}">
                 <button class="admin-inline-button" type="submit">{% if book.is_hidden %}Unhide{% else %}Hide{% endif %}</button>
               </form>
             {% endif %}
@@ -305,5 +305,50 @@
       </nav>
     {% endif %}
   </main>
+  {% if is_librarian %}
+    <script>
+      document.querySelectorAll('.js-toggle-hidden-form').forEach((form) => {
+        form.addEventListener('submit', async (event) => {
+          event.preventDefault();
+
+          const submitButton = form.querySelector('button[type="submit"]');
+          const previousText = submitButton.textContent;
+          submitButton.disabled = true;
+          submitButton.textContent = 'Saving...';
+
+          try {
+            const response = await fetch(form.action, {
+              method: 'POST',
+              headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+              },
+            });
+
+            if (!response.ok) {
+              throw new Error('Failed to update book visibility.');
+            }
+
+            const payload = await response.json();
+            submitButton.textContent = payload.button_label_short;
+
+            const titleRow = form.closest('.book-title-row');
+            const hiddenBadge = titleRow.querySelector('.hidden-badge');
+            if (payload.is_hidden && !hiddenBadge) {
+              const badge = document.createElement('span');
+              badge.className = 'hidden-badge';
+              badge.textContent = 'Hidden';
+              titleRow.insertBefore(badge, form);
+            } else if (!payload.is_hidden && hiddenBadge) {
+              hiddenBadge.remove();
+            }
+          } catch (error) {
+            submitButton.textContent = previousText;
+          } finally {
+            submitButton.disabled = false;
+          }
+        });
+      });
+    </script>
+  {% endif %}
 </body>
 </html>
