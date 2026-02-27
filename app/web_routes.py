@@ -1,6 +1,7 @@
 from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 from jinja2 import TemplateNotFound
+from werkzeug.exceptions import NotFound
 
 from app.extensions import db
 from app.forms import AnnotationForm, LoginForm, RegistrationForm, ReviewForm
@@ -76,12 +77,14 @@ def home():
 
 
 @bp.route('/profile/<int:user_id>')
+@login_required
 def profile(user_id):
     reader = get_reader_or_404(user_id)
     return render_template('profile.html', reader=reader)
 
 
 @bp.route('/reviews/<int:review_id>')
+@login_required
 def reviews(review_id):
     review = get_review_or_404(review_id, description="There is no user with this ID.")
     return render_template('_review.html', review=review)
@@ -89,7 +92,12 @@ def reviews(review_id):
 
 @bp.route('/book/<int:book_id>', methods=['GET', 'POST'])
 def book(book_id):
-    book = get_book_or_404(book_id)
+    try:
+        book = get_book_or_404(book_id)
+    except NotFound:
+        if not current_user.is_authenticated:
+            return redirect(url_for('main.login'))
+        raise
     review_form = ReviewForm(prefix='review')
     annotation_form = AnnotationForm(prefix='annotation')
 
@@ -111,6 +119,10 @@ def book(book_id):
             flash('Please log in to add an annotation.', 'error')
             return redirect(url_for('main.login'))
 
+        if current_user.role != 'librarian':
+            flash('Only librarians can add annotations.', 'error')
+            return redirect(url_for('main.home'))
+
         create_annotation(text=annotation_form.text.data, book_id=book.id, reviewer_id=current_user.id)
         return redirect(url_for('main.book', book_id=book.id))
 
@@ -122,19 +134,48 @@ def book(book_id):
         review_form=review_form,
         annotation_form=annotation_form,
         reviews=reviews,
+        is_librarian=current_user.is_authenticated and current_user.role == 'librarian',
     )
 
 
 @bp.route('/book/<int:book_id>/read')
 def book_read(book_id):
-    book = get_book_or_404(book_id)
+    try:
+        book = get_book_or_404(book_id)
+    except NotFound:
+        if not current_user.is_authenticated:
+            return redirect(url_for('main.login'))
+        raise
     annotations = list_book_annotations_desc(book)
 
     book_template = f'book_reads/book_{book.id}_read.html'
     try:
         current_app.jinja_env.loader.get_source(current_app.jinja_env, book_template)
-        return render_template(book_template, book=book, annotations=annotations)
+        return render_template(
+            book_template,
+            book=book,
+            annotations=annotations,
+            is_librarian=current_user.is_authenticated and current_user.role == 'librarian',
+        )
     except TemplateNotFound:
         pass
 
-    return render_template('book_reads/book_default_read.html', book=book, annotations=annotations)
+    return render_template(
+        'book_reads/book_default_read.html',
+        book=book,
+        annotations=annotations,
+        is_librarian=current_user.is_authenticated and current_user.role == 'librarian',
+    )
+
+
+@bp.route('/book/<int:book_id>/toggle-hidden', methods=['POST'])
+@login_required
+def toggle_book_hidden(book_id):
+    if current_user.role != 'librarian':
+        flash('Only librarians can change visibility.', 'error')
+        return redirect(url_for('main.home'))
+
+    target_book = get_book_or_404(book_id)
+    target_book.is_hidden = not target_book.is_hidden
+    db.session.commit()
+    return redirect(url_for('main.book', book_id=target_book.id))

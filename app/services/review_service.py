@@ -1,17 +1,21 @@
+from sqlalchemy import select
+
 from app.extensions import db
 from app.models import Review
 
 
 def list_book_reviews_desc(book):
-    return book.reviews.order_by(Review.id.desc()).all()
+    stmt = select(Review).filter_by(book_id=book.id).order_by(Review.id.desc())
+    return db.session.execute(stmt).scalars().all()
 
 
 def get_review_or_404(review_id, description='There is no review with this ID.'):
-    return Review.query.filter_by(id=review_id).first_or_404(description=description)
+    return db.first_or_404(select(Review).filter_by(id=review_id), description=description)
 
 
 def get_review(review_id):
-    return Review.query.filter_by(id=review_id).first()
+    stmt = select(Review).filter_by(id=review_id)
+    return db.session.execute(stmt).scalar_one_or_none()
 
 
 def create_review(text, stars, book_id, reviewer_id):
