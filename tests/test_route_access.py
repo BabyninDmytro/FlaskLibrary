@@ -1,3 +1,5 @@
+from sqlalchemy import select
+
 from app.extensions import db
 from app.models import Annotation, Book, Reader, Review
 
@@ -146,7 +148,7 @@ def test_book_route_can_create_review_for_authenticated_user(client, user, app):
     assert b'Stars:' not in response.data
 
     with app.app_context():
-        stored = Review.query.filter_by(book_id=book_id, text='My fresh review').first()
+        stored = db.session.scalar(select(Review).filter_by(book_id=book_id, text='My fresh review'))
         assert stored is not None
         assert stored.stars == 4
 
@@ -176,7 +178,7 @@ def test_book_route_redirects_guest_when_posting_review(client, app):
     assert '/login' in response.headers['Location']
 
     with app.app_context():
-        assert Review.query.filter_by(book_id=book_id, text='Guest review').first() is None
+        assert db.session.scalar(select(Review).filter_by(book_id=book_id, text='Guest review')) is None
 
 
 def test_book_route_does_not_create_review_for_invalid_stars(client, user, app):
@@ -204,7 +206,7 @@ def test_book_route_does_not_create_review_for_invalid_stars(client, user, app):
     assert response.status_code == 200
 
     with app.app_context():
-        stored = Review.query.filter_by(book_id=book_id, text='Should not persist').first()
+        stored = db.session.scalar(select(Review).filter_by(book_id=book_id, text='Should not persist'))
         assert stored is None
 
 
@@ -236,7 +238,7 @@ def test_book_route_can_create_annotation_for_librarian(client, librarian, app):
     assert b'Add your annotation' in response.data
 
     with app.app_context():
-        stored = Annotation.query.filter_by(book_id=book_id, text='A compact and useful annotation').first()
+        stored = db.session.scalar(select(Annotation).filter_by(book_id=book_id, text='A compact and useful annotation'))
         assert stored is not None
 
 
@@ -272,7 +274,7 @@ def test_book_route_reader_cannot_annotate_and_does_not_see_annotation_form(clie
     assert '/home' in post_response.headers['Location']
 
     with app.app_context():
-        stored = Annotation.query.filter_by(book_id=book_id, text='Reader annotation attempt').first()
+        stored = db.session.scalar(select(Annotation).filter_by(book_id=book_id, text='Reader annotation attempt'))
         assert stored is None
 
 
@@ -301,7 +303,7 @@ def test_book_route_redirects_guest_when_posting_annotation(client, app):
     assert '/login' in response.headers['Location']
 
     with app.app_context():
-        assert Annotation.query.filter_by(book_id=book_id, text='Guest note').first() is None
+        assert db.session.scalar(select(Annotation).filter_by(book_id=book_id, text='Guest note')) is None
 
 
 def test_book_read_route_redirects_guest_for_missing_book(client):
@@ -315,7 +317,7 @@ def test_book_read_route_redirects_guest_for_missing_book(client):
 
 def test_api_book_data_returns_json_payload(client, app, user):
     with app.app_context():
-        reader = Reader.query.filter_by(email=user).first()
+        reader = db.session.scalar(select(Reader).filter_by(email=user))
         book = Book(
             title='API Data Book',
             author_name='Ira',
@@ -406,7 +408,7 @@ def test_book_read_route_shows_annotations_in_expected_order(client, app, user):
     assert login_response.status_code == 302
 
     with app.app_context():
-        reader = Reader.query.filter_by(email=user).first()
+        reader = db.session.scalar(select(Reader).filter_by(email=user))
         book = Book(
             title='Readable Book',
             author_name='Oksana',
@@ -451,7 +453,7 @@ def test_book_page_shows_read_now_button_and_hides_annotation_feed(client, app, 
     assert login_response.status_code == 302
 
     with app.app_context():
-        reader = Reader.query.filter_by(email=user).first()
+        reader = db.session.scalar(select(Reader).filter_by(email=user))
         book = Book(
             title='Book Button Check',
             author_name='Iryna',
@@ -529,7 +531,7 @@ def test_api_books_collection_returns_paginated_items(client, app):
 
 def test_api_reader_profile_returns_json(client, app, user):
     with app.app_context():
-        reader = Reader.query.filter_by(email=user).first()
+        reader = db.session.scalar(select(Reader).filter_by(email=user))
         reader_id = reader.id
 
     response = client.get(f'/api/v1/readers/{reader_id}', follow_redirects=False)
@@ -545,7 +547,7 @@ def test_api_reader_profile_returns_json(client, app, user):
 
 def test_api_review_details_returns_json(client, app, user):
     with app.app_context():
-        reader = Reader.query.filter_by(email=user).first()
+        reader = db.session.scalar(select(Reader).filter_by(email=user))
         book = Book(title='Review API Book', author_name='R', author_surname='S', month='April', year=2024)
         db.session.add(book)
         db.session.commit()
@@ -583,7 +585,7 @@ def test_api_review_patch_requires_authentication(client, app, user):
     ensure_guest(client)
 
     with app.app_context():
-        reader = Reader.query.filter_by(email=user).first()
+        reader = db.session.scalar(select(Reader).filter_by(email=user))
         book = Book(title='Patch Review Book', author_name='A', author_surname='B', month='May', year=2024)
         db.session.add(book)
         db.session.commit()
@@ -601,7 +603,7 @@ def test_api_review_patch_requires_authentication(client, app, user):
 
 def test_api_review_patch_returns_403_for_non_owner(client, app, user):
     with app.app_context():
-        owner = Reader.query.filter_by(email=user).first()
+        owner = db.session.scalar(select(Reader).filter_by(email=user))
         intruder = Reader(name='Intruder', surname='User', email='intruder@example.com', role='reader')
         intruder.set_password('Secret123!')
         db.session.add(intruder)
@@ -631,7 +633,7 @@ def test_api_review_patch_returns_422_for_invalid_data(client, app, user):
     assert login_response.status_code == 302
 
     with app.app_context():
-        reader = Reader.query.filter_by(email=user).first()
+        reader = db.session.scalar(select(Reader).filter_by(email=user))
         book = Book(title='Invalid Patch', author_name='E', author_surname='F', month='July', year=2024)
         db.session.add(book)
         db.session.commit()
@@ -653,7 +655,7 @@ def test_api_review_patch_updates_owned_review(client, app, user):
     assert login_response.status_code == 302
 
     with app.app_context():
-        reader = Reader.query.filter_by(email=user).first()
+        reader = db.session.scalar(select(Reader).filter_by(email=user))
         book = Book(title='Owned Patch', author_name='G', author_surname='H', month='August', year=2024)
         db.session.add(book)
         db.session.commit()
@@ -679,7 +681,7 @@ def test_api_review_delete_requires_authentication(client, app, user):
     ensure_guest(client)
 
     with app.app_context():
-        reader = Reader.query.filter_by(email=user).first()
+        reader = db.session.scalar(select(Reader).filter_by(email=user))
         book = Book(title='Delete Review Book', author_name='I', author_surname='J', month='September', year=2024)
         db.session.add(book)
         db.session.commit()
@@ -700,7 +702,7 @@ def test_api_review_delete_removes_owned_review(client, app, user):
     assert login_response.status_code == 302
 
     with app.app_context():
-        reader = Reader.query.filter_by(email=user).first()
+        reader = db.session.scalar(select(Reader).filter_by(email=user))
         book = Book(title='Owned Delete Review', author_name='K', author_surname='L', month='October', year=2024)
         db.session.add(book)
         db.session.commit()
@@ -714,7 +716,7 @@ def test_api_review_delete_removes_owned_review(client, app, user):
     assert response.status_code == 204
 
     with app.app_context():
-        assert Review.query.filter_by(id=review_id).first() is None
+        assert db.session.scalar(select(Review).filter_by(id=review_id)) is None
 
 
 
@@ -724,7 +726,7 @@ def test_api_annotation_patch_and_delete_for_owner(client, app, user):
     assert login_response.status_code == 302
 
     with app.app_context():
-        reader = Reader.query.filter_by(email=user).first()
+        reader = db.session.scalar(select(Reader).filter_by(email=user))
         book = Book(title='Annotation Mutations', author_name='M', author_surname='N', month='November', year=2024)
         db.session.add(book)
         db.session.commit()
@@ -745,13 +747,13 @@ def test_api_annotation_patch_and_delete_for_owner(client, app, user):
     assert delete_response.status_code == 204
 
     with app.app_context():
-        assert Annotation.query.filter_by(id=annotation_id).first() is None
+        assert db.session.scalar(select(Annotation).filter_by(id=annotation_id)) is None
 
 
 
 def test_api_annotation_patch_returns_401_403_422(client, app, user):
     with app.app_context():
-        owner = Reader.query.filter_by(email=user).first()
+        owner = db.session.scalar(select(Reader).filter_by(email=user))
         intruder = Reader(name='Another', surname='Intruder', email='another.intruder@example.com', role='reader')
         intruder.set_password('Secret123!')
         db.session.add(intruder)
@@ -835,7 +837,7 @@ def test_api_create_review_validation_and_success(client, app, user):
     assert login_response.status_code == 302
 
     with app.app_context():
-        reader = Reader.query.filter_by(email=user).first()
+        reader = db.session.scalar(select(Reader).filter_by(email=user))
         book = Book(title='Create Review Success', author_name='CC', author_surname='DD', month='Feb', year=2024)
         db.session.add(book)
         db.session.commit()
@@ -868,7 +870,7 @@ def test_api_create_annotation_validation_and_success(client, app, user):
     assert login_response.status_code == 302
 
     with app.app_context():
-        reader = Reader.query.filter_by(email=user).first()
+        reader = db.session.scalar(select(Reader).filter_by(email=user))
         book = Book(title='Create Annotation Success', author_name='EE', author_surname='FF', month='Mar', year=2024)
         db.session.add(book)
         db.session.commit()
@@ -911,3 +913,43 @@ def test_api_create_annotation_requires_authentication(client, app):
 
     assert response.status_code == 401
     assert response.is_json
+
+
+def test_home_shows_librarian_controls_for_librarian(client, app, librarian):
+    ensure_guest(client)
+    login_response = login(client, email=librarian)
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        book = Book(title='Librarian Home Controls', author_name='A', author_surname='B', month='Jan', year=2025)
+        db.session.add(book)
+        db.session.commit()
+        book_id = book.id
+
+    response = client.get('/home', follow_redirects=True)
+
+    assert response.status_code == 200
+    assert f'/book/{book_id}/toggle-hidden'.encode() in response.data
+
+
+def test_book_read_shows_annotation_delete_for_librarian(client, app, librarian):
+    ensure_guest(client)
+    login_response = login(client, email=librarian)
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        librarian_user = db.session.scalar(select(Reader).filter_by(email=librarian))
+        book = Book(title='Librarian Read Controls', author_name='A', author_surname='B', month='Jan', year=2025)
+        db.session.add(book)
+        db.session.commit()
+
+        annotation = Annotation(text='Moderation target', book_id=book.id, reviewer_id=librarian_user.id)
+        db.session.add(annotation)
+        db.session.commit()
+        book_id = book.id
+        annotation_id = annotation.id
+
+    response = client.get(f'/book/{book_id}/read', follow_redirects=True)
+
+    assert response.status_code == 200
+    assert f'/annotations/{annotation_id}/delete'.encode() in response.data

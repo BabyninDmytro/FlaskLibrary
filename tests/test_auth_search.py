@@ -1,3 +1,5 @@
+from sqlalchemy import select
+
 from app.extensions import db
 from app.models import Book, Reader
 
@@ -53,7 +55,7 @@ def test_register_creates_user_and_redirects_to_home(client, app):
     assert '/home' in response.headers['Location']
 
     with app.app_context():
-        created = Reader.query.filter_by(email='new.reader@example.com').first()
+        created = db.session.scalar(select(Reader).filter_by(email='new.reader@example.com'))
         assert created is not None
         assert created.role == 'reader'
 
