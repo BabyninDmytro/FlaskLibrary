@@ -129,7 +129,7 @@ def book(book_id):
             flash('Please log in to add an annotation.', 'error')
             return redirect(url_for('main.login'))
 
-        if current_user.role != 'librarian':
+        if not _is_librarian():
             flash('Only librarians can add annotations.', 'error')
             return redirect(url_for('main.home'))
 
@@ -182,7 +182,7 @@ def book_read(book_id):
 @bp.route('/book/<int:book_id>/toggle-hidden', methods=['POST'])
 @login_required
 def toggle_book_hidden(book_id):
-    if current_user.role != 'librarian':
+    if not _is_librarian():
         flash('Only librarians can change visibility.', 'error')
         return redirect(url_for('main.home'))
 
