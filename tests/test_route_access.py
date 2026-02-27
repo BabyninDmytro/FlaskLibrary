@@ -913,3 +913,43 @@ def test_api_create_annotation_requires_authentication(client, app):
 
     assert response.status_code == 401
     assert response.is_json
+
+
+def test_home_shows_librarian_controls_for_librarian(client, app, librarian):
+    ensure_guest(client)
+    login_response = login(client, email=librarian)
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        book = Book(title='Librarian Home Controls', author_name='A', author_surname='B', month='Jan', year=2025)
+        db.session.add(book)
+        db.session.commit()
+        book_id = book.id
+
+    response = client.get('/home', follow_redirects=True)
+
+    assert response.status_code == 200
+    assert f'/book/{book_id}/toggle-hidden'.encode() in response.data
+
+
+def test_book_read_shows_annotation_delete_for_librarian(client, app, librarian):
+    ensure_guest(client)
+    login_response = login(client, email=librarian)
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        librarian_user = db.session.scalar(select(Reader).filter_by(email=librarian))
+        book = Book(title='Librarian Read Controls', author_name='A', author_surname='B', month='Jan', year=2025)
+        db.session.add(book)
+        db.session.commit()
+
+        annotation = Annotation(text='Moderation target', book_id=book.id, reviewer_id=librarian_user.id)
+        db.session.add(annotation)
+        db.session.commit()
+        book_id = book.id
+        annotation_id = annotation.id
+
+    response = client.get(f'/book/{book_id}/read', follow_redirects=True)
+
+    assert response.status_code == 200
+    assert f'/annotations/{annotation_id}/delete'.encode() in response.data

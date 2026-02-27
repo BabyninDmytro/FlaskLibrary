@@ -6,13 +6,22 @@ from werkzeug.exceptions import NotFound
 from app.extensions import db
 from app.forms import AnnotationForm, LoginForm, RegistrationForm, ReviewForm
 from app.models import Reader
-from app.services.annotation_service import create_annotation, list_book_annotations_desc
+from app.services.annotation_service import create_annotation, delete_annotation as delete_annotation_service, get_annotation, list_book_annotations_desc
 from app.services.book_service import get_book_or_404, paginate_books
 from app.services.reader_service import get_reader_by_email, get_reader_or_404
-from app.services.review_service import create_review, get_review_or_404, list_book_reviews_desc
+from app.services.review_service import create_review, delete_review as delete_review_service, get_review, get_review_or_404, list_book_reviews_desc
 
 
 bp = Blueprint('main', __name__)
+
+def _is_librarian():
+    return current_user.is_authenticated and current_user.role == 'librarian'
+
+
+@bp.app_context_processor
+def inject_role_flags():
+    return {'is_librarian': _is_librarian()}
+
 
 
 @bp.route('/', methods=['GET'])
@@ -73,7 +82,7 @@ def home():
     page = request.args.get('page', 1, type=int)
     books = paginate_books(search_query=search_query, page=page, per_page=10)
 
-    return render_template('home.html', books=books, search_query=search_query)
+    return render_template('home.html', books=books, search_query=search_query, is_librarian=_is_librarian())
 
 
 @bp.route('/profile/<int:user_id>')
@@ -87,7 +96,7 @@ def profile(user_id):
 @login_required
 def reviews(review_id):
     review = get_review_or_404(review_id, description="There is no user with this ID.")
-    return render_template('_review.html', review=review)
+    return render_template('_review.html', review=review, is_librarian=_is_librarian())
 
 
 @bp.route('/book/<int:book_id>', methods=['GET', 'POST'])
@@ -134,7 +143,7 @@ def book(book_id):
         review_form=review_form,
         annotation_form=annotation_form,
         reviews=reviews,
-        is_librarian=current_user.is_authenticated and current_user.role == 'librarian',
+        is_librarian=_is_librarian(),
     )
 
 
@@ -155,7 +164,7 @@ def book_read(book_id):
             book_template,
             book=book,
             annotations=annotations,
-            is_librarian=current_user.is_authenticated and current_user.role == 'librarian',
+            is_librarian=_is_librarian(),
         )
     except TemplateNotFound:
         pass
@@ -164,7 +173,7 @@ def book_read(book_id):
         'book_reads/book_default_read.html',
         book=book,
         annotations=annotations,
-        is_librarian=current_user.is_authenticated and current_user.role == 'librarian',
+        is_librarian=_is_librarian(),
     )
 
 
@@ -179,3 +188,36 @@ def toggle_book_hidden(book_id):
     target_book.is_hidden = not target_book.is_hidden
     db.session.commit()
     return redirect(url_for('main.book', book_id=target_book.id))
+
+
+@bp.route('/reviews/<int:review_id>/delete', methods=['POST'], endpoint='delete_review')
+@login_required
+def delete_review(review_id):
+    if not _is_librarian():
+        flash('Only librarians can delete reviews.', 'error')
+        return redirect(url_for('main.home'))
+
+    review = get_review(review_id)
+    if review is None:
+        flash('Review not found.', 'error')
+        return redirect(url_for('main.home'))
+
+    delete_review_service(review)
+    return redirect(request.referrer or url_for('main.book', book_id=review.book_id))
+
+
+@bp.route('/annotations/<int:annotation_id>/delete', methods=['POST'], endpoint='delete_annotation')
+@login_required
+def delete_annotation(annotation_id):
+    if not _is_librarian():
+        flash('Only librarians can delete annotations.', 'error')
+        return redirect(url_for('main.home'))
+
+    annotation = get_annotation(annotation_id)
+    if annotation is None:
+        flash('Annotation not found.', 'error')
+        return redirect(url_for('main.home'))
+
+    book_id = annotation.book_id
+    delete_annotation_service(annotation)
+    return redirect(request.referrer or url_for('main.book_read', book_id=book_id))
