@@ -1,13 +1,17 @@
+from sqlalchemy import select
+
 from app.extensions import db
 from app.models import Annotation
 
 
 def list_book_annotations_desc(book):
-    return book.annotations.order_by(Annotation.id.desc()).all()
+    stmt = select(Annotation).filter_by(book_id=book.id).order_by(Annotation.id.desc())
+    return db.session.execute(stmt).scalars().all()
 
 
 def get_annotation(annotation_id):
-    return Annotation.query.filter_by(id=annotation_id).first()
+    stmt = select(Annotation).filter_by(id=annotation_id)
+    return db.session.execute(stmt).scalar_one_or_none()
 
 
 def create_annotation(text, book_id, reviewer_id):

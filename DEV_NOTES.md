@@ -1,5 +1,13 @@
 # Dev Notes
 
+
+## 2026-02-27
+- Перевірено й виправлено `is_librarian` у web-шаблонах: додано context processor `inject_role_flags()` та уніфікований helper `_is_librarian()` в `app/web_routes.py`, тому librarian-контент коректно з’являється на сторінках (`home`, `book`, `book_read`, `_review`). Також відновлено web moderation endpoint-и `POST /reviews/<id>/delete` і `POST /annotations/<id>/delete`, які використовуються кнопками в шаблонах.
+- Виправлено web-доступи та рольову поведінку в `app/web_routes.py`: додано `@login_required` для `profile/reviews/book/book_read`, відновлено передачу `is_librarian` у шаблони, обмежено створення анотацій лише для `librarian` (для reader — редірект на `/home`), додано маршрут `POST /book/<id>/toggle-hidden` для бібліотекаря.
+- Переведено сервісний шар на SQLAlchemy 2.0-style запити: замість `Model.query` використано `select(...)` + явне виконання через `db.session.execute(...)` (`app/services/book_service.py`, `app/services/review_service.py`, `app/services/annotation_service.py`, `app/services/reader_service.py`).
+- У `book_service` пошук і пагінація тепер працюють із `Select`-виразом та `db.paginate(...)`, що чітко розділяє побудову запиту і його виконання.
+- Оновлено тести для сучасного підходу до читання з БД: замість `Model.query...` використовується `select(...)` + `db.session.scalar(...)`/агрегації через `func.count(...)` (`tests/test_auth_search.py`, `tests/test_models_relationships.py`, `tests/test_route_access.py`).
+
 ## 2026-02-26
 - Спрощено `book_details()` в `app/api_routes.py`: прибрано дублюючі list-comprehension трансформації для `reviews`/`annotations`, тепер використовується прямий результат `serialize_review()` і `serialize_annotation()` без повторного ручного мапінгу тих самих полів.
 - Уточнено документацію для `books_collection()` (`app/api_routes.py`): `per_page` — це кількість книг на сторінку; якщо параметр не передано в запиті, використовується значення за замовчуванням `10`, а допустимий діапазон — `1..50`. Також описано `search`, `page` і структуру JSON-відповіді з блоком `pagination`.
