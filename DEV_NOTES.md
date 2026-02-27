@@ -2,6 +2,7 @@
 
 
 ## 2026-02-27
+- Додатково уніфіковано `app/services/book_service.py` під SQLAlchemy 2-style термінологію та вирази: `build_books_query()`/`paginate_books()` працюють через `stmt` (Select statement), а `get_book_or_404()` використовує явний `where(Book.id == ...)` замість query-подібного `filter_by`, щоб прибрати неоднозначність зі «старим» синтаксисом.
 - Перевірено й виправлено `is_librarian` у web-шаблонах: додано context processor `inject_role_flags()` та уніфікований helper `_is_librarian()` в `app/web_routes.py`, тому librarian-контент коректно з’являється на сторінках (`home`, `book`, `book_read`, `_review`). Також відновлено web moderation endpoint-и `POST /reviews/<id>/delete` і `POST /annotations/<id>/delete`, які використовуються кнопками в шаблонах.
 - Виправлено web-доступи та рольову поведінку в `app/web_routes.py`: додано `@login_required` для `profile/reviews/book/book_read`, відновлено передачу `is_librarian` у шаблони, обмежено створення анотацій лише для `librarian` (для reader — редірект на `/home`), додано маршрут `POST /book/<id>/toggle-hidden` для бібліотекаря.
 - Переведено сервісний шар на SQLAlchemy 2.0-style запити: замість `Model.query` використано `select(...)` + явне виконання через `db.session.execute(...)` (`app/services/book_service.py`, `app/services/review_service.py`, `app/services/annotation_service.py`, `app/services/reader_service.py`).

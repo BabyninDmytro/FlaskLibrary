@@ -5,7 +5,7 @@ from app.models import Book
 
 
 def build_books_query(search_query=''):
-    query = select(Book)
+    stmt = select(Book)
 
     if search_query:
         terms = [term for term in search_query.split() if term]
@@ -24,16 +24,16 @@ def build_books_query(search_query=''):
             )
 
         if term_filters:
-            query = query.where(and_(*term_filters))
+            stmt = stmt.where(and_(*term_filters))
 
-    return query
+    return stmt
 
 
 def paginate_books(search_query='', page=1, per_page=10):
-    query = build_books_query(search_query)
-    query = query.order_by(Book.year.desc(), Book.month.asc(), Book.title.asc())
+    stmt = build_books_query(search_query)
+    stmt = stmt.order_by(Book.year.desc(), Book.month.asc(), Book.title.asc())
     return db.paginate(
-        query,
+        stmt,
         page=page,
         per_page=per_page,
         error_out=False,
@@ -41,7 +41,8 @@ def paginate_books(search_query='', page=1, per_page=10):
 
 
 def get_book_or_404(book_id, description='There is no book with this ID.'):
-    return db.first_or_404(select(Book).filter_by(id=book_id), description=description)
+    stmt = select(Book).where(Book.id == book_id)
+    return db.first_or_404(stmt, description=description)
 
 
 def serialize_book(book):
