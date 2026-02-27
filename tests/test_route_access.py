@@ -932,6 +932,76 @@ def test_home_shows_librarian_controls_for_librarian(client, app, librarian):
     assert f'/book/{book_id}/toggle-hidden'.encode() in response.data
 
 
+
+
+def test_toggle_hidden_returns_json_for_ajax_requests(client, app, librarian):
+    ensure_guest(client)
+    login_response = login(client, email=librarian)
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        book = Book(title='Ajax Hidden Toggle', author_name='A', author_surname='B', month='Jan', year=2025)
+        db.session.add(book)
+        db.session.commit()
+        book_id = book.id
+
+    response = client.post(
+        f'/book/{book_id}/toggle-hidden',
+        headers={'X-Requested-With': 'XMLHttpRequest'},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 200
+    assert response.is_json
+    payload = response.get_json()
+    assert payload['book_id'] == book_id
+    assert payload['is_hidden'] is True
+    assert payload['button_label_short'] == 'Unhide'
+
+
+def test_toggle_hidden_ajax_forbidden_for_reader(client, app, user):
+    ensure_guest(client)
+    login_response = login(client, email=user)
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        book = Book(title='Ajax Toggle Forbidden', author_name='A', author_surname='B', month='Jan', year=2025)
+        db.session.add(book)
+        db.session.commit()
+        book_id = book.id
+
+    response = client.post(
+        f'/book/{book_id}/toggle-hidden',
+        headers={'X-Requested-With': 'XMLHttpRequest'},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 403
+    assert response.is_json
+    assert response.get_json()['error'] == 'Only librarians can change visibility.'
+
+
+def test_toggle_hidden_non_ajax_still_returns_json(client, app, librarian):
+    ensure_guest(client)
+    login_response = login(client, email=librarian)
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        book = Book(title='Non Ajax Toggle', author_name='A', author_surname='B', month='Jan', year=2025)
+        db.session.add(book)
+        db.session.commit()
+        book_id = book.id
+
+    response = client.post(
+        f'/book/{book_id}/toggle-hidden',
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 200
+    assert response.is_json
+    assert response.get_json()['book_id'] == book_id
+
+
 def test_book_read_shows_annotation_delete_for_librarian(client, app, librarian):
     ensure_guest(client)
     login_response = login(client, email=librarian)

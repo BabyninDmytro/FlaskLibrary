@@ -313,7 +313,7 @@
           <div class="book-actions">
             <a class="read-now-link" href="{{ url_for('main.book_read', book_id=book.id) }}">Read now</a>
             {% if is_librarian %}
-              <form class="admin-inline-form" action="{{ url_for('main.toggle_book_hidden', book_id=book.id) }}" method="post">
+              <form class="admin-inline-form js-toggle-hidden-form" action="{{ url_for('main.toggle_book_hidden', book_id=book.id) }}" method="post">
                 <button class="admin-inline-button" type="submit">{% if book.is_hidden %}Unhide book{% else %}Hide book{% endif %}</button>
               </form>
             {% endif %}
@@ -356,5 +356,41 @@
       </form>
     </section>
   </main>
+
+  {% if is_librarian %}
+    <script>
+      const toggleHiddenForm = document.querySelector('.js-toggle-hidden-form');
+      if (toggleHiddenForm) {
+        toggleHiddenForm.addEventListener('submit', async (event) => {
+          event.preventDefault();
+
+          const submitButton = toggleHiddenForm.querySelector('button[type="submit"]');
+          const previousText = submitButton.textContent;
+          submitButton.disabled = true;
+          submitButton.textContent = 'Saving...';
+
+          try {
+            const response = await fetch(toggleHiddenForm.action, {
+              method: 'POST',
+              headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+              },
+            });
+
+            if (!response.ok) {
+              throw new Error('Failed to update book visibility.');
+            }
+
+            const payload = await response.json();
+            submitButton.textContent = payload.button_label;
+          } catch (error) {
+            submitButton.textContent = previousText;
+          } finally {
+            submitButton.disabled = false;
+          }
+        });
+      }
+    </script>
+  {% endif %}
 </body>
 </html>

@@ -2,6 +2,8 @@
 
 
 ## 2026-02-27
+- Реалізовано AJAX-перемикання видимості книги без повного перезавантаження сторінки: `POST /book/<id>/toggle-hidden` тепер повертає JSON для XHR-запитів (новий `is_hidden`, текст кнопки, обробка 403 для non-librarian), а в `templates/home.html` і `templates/book.html` додано JS, який через `fetch` оновлює стан кнопки (і бейдж `Hidden` на home) локально.
+- Спрощено `POST /book/<id>/toggle-hidden`: редірект із цієї функції прибрано повністю. Endpoint тепер завжди повертає JSON (`200` для librarian, `403` для non-librarian), а кнопку на UI оновлює клієнтський `fetch` без навігації.
 - Додатково уніфіковано `app/services/book_service.py` під SQLAlchemy 2-style термінологію та вирази: `build_books_query()`/`paginate_books()` працюють через `stmt` (Select statement), а `get_book_or_404()` використовує явний `where(Book.id == ...)` замість query-подібного `filter_by`, щоб прибрати неоднозначність зі «старим» синтаксисом.
 - Перевірено й виправлено `is_librarian` у web-шаблонах: додано context processor `inject_role_flags()` та уніфікований helper `_is_librarian()` в `app/web_routes.py`, тому librarian-контент коректно з’являється на сторінках (`home`, `book`, `book_read`, `_review`). Також відновлено web moderation endpoint-и `POST /reviews/<id>/delete` і `POST /annotations/<id>/delete`, які використовуються кнопками в шаблонах.
 - Виправлено web-доступи та рольову поведінку в `app/web_routes.py`: додано `@login_required` для `profile/reviews/book/book_read`, відновлено передачу `is_librarian` у шаблони, обмежено створення анотацій лише для `librarian` (для reader — редірект на `/home`), додано маршрут `POST /book/<id>/toggle-hidden` для бібліотекаря.

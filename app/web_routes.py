@@ -1,4 +1,4 @@
-from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 from jinja2 import TemplateNotFound
 from werkzeug.exceptions import NotFound
@@ -183,13 +183,20 @@ def book_read(book_id):
 @login_required
 def toggle_book_hidden(book_id):
     if not _is_librarian():
-        flash('Only librarians can change visibility.', 'error')
-        return redirect(url_for('main.home'))
+        return jsonify({'error': 'Only librarians can change visibility.'}), 403
 
     target_book = get_book_or_404(book_id)
     target_book.is_hidden = not target_book.is_hidden
     db.session.commit()
-    return redirect(url_for('main.book', book_id=target_book.id))
+
+    return jsonify(
+        {
+            'book_id': target_book.id,
+            'is_hidden': target_book.is_hidden,
+            'button_label': 'Unhide book' if target_book.is_hidden else 'Hide book',
+            'button_label_short': 'Unhide' if target_book.is_hidden else 'Hide',
+        }
+    )
 
 
 @bp.route('/reviews/<int:review_id>/delete', methods=['POST'], endpoint='delete_review')
