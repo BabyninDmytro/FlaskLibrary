@@ -2,11 +2,11 @@ import logging
 import os
 from pathlib import Path
 
-from flask import Flask
+from flask import Flask, request
 from flask_login import current_user
 from sqlalchemy.exc import OperationalError
 
-from app.extensions import db, login_manager
+from app.extensions import cache, db, login_manager
 
 
 logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s')
@@ -34,6 +34,8 @@ def create_app(test_config=None):
         SECRET_KEY='you-will-never-guess',
         SQLALCHEMY_DATABASE_URI=f"sqlite:///{db_path}",
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
+        CACHE_TYPE='SimpleCache',
+        CACHE_DEFAULT_TIMEOUT=60,
     )
 
     if test_config:
@@ -42,6 +44,7 @@ def create_app(test_config=None):
     os.makedirs(app.instance_path, exist_ok=True)
 
     db.init_app(app)
+    cache.init_app(app)
 
     logging.info('DB path: %s', db_path)
 
@@ -57,7 +60,7 @@ def create_app(test_config=None):
 
     @app.after_request
     def add_no_store_headers(response):
-        if current_user.is_authenticated:
+        if request.blueprint == 'main' and current_user.is_authenticated:
             response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
             response.headers['Pragma'] = 'no-cache'
             response.headers['Expires'] = '0'

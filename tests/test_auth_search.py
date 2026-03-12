@@ -16,7 +16,24 @@ def home_search(client, query):
     return client.get(f'/home?search={query}', follow_redirects=True)
 
 
+def ensure_guest(client):
+    client.get('/logout', follow_redirects=False)
+
+    with client.session_transaction() as session:
+        session.clear()
+
+    if hasattr(client, 'cookie_jar'):
+        client.cookie_jar.clear()
+        return
+
+    cookie_store = getattr(client, '_cookies', None)
+    if cookie_store is not None:
+        cookie_store.clear()
+
+
 def test_login_with_invalid_password_shows_flash(client, user):
+    ensure_guest(client)
+
     response = client.post(
         '/login',
         data={'email': 'test.user@example.com', 'password': 'wrong-pass'},

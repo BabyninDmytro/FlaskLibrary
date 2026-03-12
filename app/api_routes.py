@@ -1,7 +1,11 @@
+import hashlib
+import json
+
 from flask import Blueprint, jsonify, redirect, request, url_for
 from flask_login import current_user
 from werkzeug.exceptions import HTTPException
 
+from app.extensions import cache
 from app.services.annotation_service import (
     create_annotation,
     delete_annotation,
@@ -25,6 +29,32 @@ from app.services.review_service import (
 bp = Blueprint('api', __name__)
 
 
+def _build_api_response(payload, ttl=60):
+    payload_json = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    etag = hashlib.sha256(payload_json.encode('utf-8')).hexdigest()
+
+    response = jsonify(payload)
+    response.set_etag(etag, weak=False)
+    response.cache_control.public = True
+    response.cache_control.max_age = ttl
+    response.headers['Vary'] = 'Accept'
+
+    return response.make_conditional(request)
+
+
+def _cached_public_json(cache_key, payload_factory, ttl=60):
+    payload = cache.get(cache_key)
+    if payload is None:
+        payload = payload_factory()
+        cache.set(cache_key, payload, timeout=ttl)
+
+    return _build_api_response(payload, ttl=ttl)
+
+
+def _invalidate_api_cache():
+    cache.clear()
+
+
 def _json_error(status, message, details=None):
     payload = {'error': {'code': status, 'message': message}}
     if details is not None:
@@ -44,10 +74,11 @@ def books_collection():
     page = max(request.args.get('page', 1, type=int), 1)
     per_page = min(max(request.args.get('per_page', 10, type=int), 1), 50)
 
-    paginated = paginate_books(search_query=search_query, page=page, per_page=per_page)
+    cache_key = f'api:v1:books:search={search_query}:page={page}:per_page={per_page}'
 
-    return jsonify(
-        {
+    def payload_factory():
+        paginated = paginate_books(search_query=search_query, page=page, per_page=per_page)
+        return {
             'items': [serialize_book(book) for book in paginated.items],
             'pagination': {
                 'page': paginated.page,
@@ -59,21 +90,25 @@ def books_collection():
             },
             'search': search_query,
         }
-    )
+
+    return _cached_public_json(cache_key, payload_factory)
 
 
 @bp.route('/api/v1/books/<int:book_id>', methods=['GET'])
 def book_details(book_id):
-    book = get_book_or_404(book_id)
+    cache_key = f'api:v1:books:{book_id}:details'
 
-    reviews = [serialize_review(review) for review in list_book_reviews_desc(book)]
-    annotations = [serialize_annotation(annotation) for annotation in list_book_annotations_desc(book)]
+    def payload_factory():
+        book = get_book_or_404(book_id)
+        reviews = [serialize_review(review) for review in list_book_reviews_desc(book)]
+        annotations = [serialize_annotation(annotation) for annotation in list_book_annotations_desc(book)]
 
-    payload = serialize_book(book)
-    payload['reviews'] = reviews
-    payload['annotations'] = annotations
+        payload = serialize_book(book)
+        payload['reviews'] = reviews
+        payload['annotations'] = annotations
+        return payload
 
-    return jsonify(payload)
+    return _cached_public_json(cache_key, payload_factory)
 
 
 @bp.route('/api/v1/books/<int:book_id>/reviews', methods=['POST'])
@@ -99,6 +134,7 @@ def review_create(book_id):
         return _json_error(422, 'Validation failed.', errors)
 
     review = create_review(text=text, stars=stars, book_id=book.id, reviewer_id=current_user.id)
+    _invalidate_api_cache()
     return jsonify(serialize_review(review)), 201
 
 
@@ -117,6 +153,7 @@ def annotation_create(book_id):
         return _json_error(422, 'Validation failed.', {'text': 'Text must be at most 200 characters.'})
 
     annotation = create_annotation(text=text, book_id=book.id, reviewer_id=current_user.id)
+    _invalidate_api_cache()
     return jsonify(serialize_annotation(annotation)), 201
 
 
@@ -124,14 +161,24 @@ def annotation_create(book_id):
 def reader_profile(user_id):
     from app.services.reader_service import get_reader_or_404, serialize_reader
 
-    reader = get_reader_or_404(user_id)
-    return jsonify(serialize_reader(reader))
+    cache_key = f'api:v1:readers:{user_id}'
+
+    def payload_factory():
+        reader = get_reader_or_404(user_id)
+        return serialize_reader(reader)
+
+    return _cached_public_json(cache_key, payload_factory)
 
 
 @bp.route('/api/v1/reviews/<int:review_id>', methods=['GET'])
 def review_details(review_id):
-    review = get_review_or_404(review_id)
-    return jsonify(serialize_review(review))
+    cache_key = f'api:v1:reviews:{review_id}'
+
+    def payload_factory():
+        review = get_review_or_404(review_id)
+        return serialize_review(review)
+
+    return _cached_public_json(cache_key, payload_factory)
 
 
 @bp.route('/api/v1/reviews/<int:review_id>', methods=['PATCH'])
@@ -165,6 +212,7 @@ def review_update(review_id):
         return _json_error(400, 'No valid fields to update.')
 
     review = update_review(review, updates)
+    _invalidate_api_cache()
     return jsonify(serialize_review(review))
 
 
@@ -179,6 +227,7 @@ def review_delete(review_id):
         return _json_error(403, 'You can delete only your own review.')
 
     delete_review(review)
+    _invalidate_api_cache()
     return ('', 204)
 
 
@@ -203,6 +252,7 @@ def annotation_update(annotation_id):
         return _json_error(422, 'Validation failed.', {'text': 'Text must be at most 200 characters.'})
 
     annotation = update_annotation(annotation, text)
+    _invalidate_api_cache()
     return jsonify(serialize_annotation(annotation))
 
 
@@ -217,6 +267,7 @@ def annotation_delete(annotation_id):
         return _json_error(403, 'You can delete only your own annotation.')
 
     delete_annotation(annotation)
+    _invalidate_api_cache()
     return ('', 204)
 
 

@@ -139,3 +139,10 @@ Notes:
 
 ## 2026-02-27
 - Оновлено `README.md`: додано актуальний опис можливостей FlaskLibrary, структуру проєкту, інструкції запуску, запуску тестів та посилання на API-документацію.
+
+## 2026-03-12
+- Додано HTTP-кешування для REST `GET` endpoint-ів (`/api/v1/books`, `/api/v1/books/<id>`, `/api/v1/readers/<id>`, `/api/v1/reviews/<id>`): тепер API-відповіді повертаються з `ETag`, `Cache-Control: public, max-age=60` та підтримкою conditional requests (`If-None-Match`/`304 Not Modified`).
+- Реалізовано серверний in-memory TTL кеш (без Redis) у `app/extensions.py` через `SimpleTTLCache`, інтегровано в `create_app()`; кеш використовується для публічних `GET` REST-відповідей.
+- Для узгодженості даних додано інвалідацію API-кешу після mutating-операцій (`POST/PATCH/DELETE` для review/annotation).
+- Уточнено no-store політику: `no-store/no-cache` заголовки для авторизованих користувачів тепер застосовуються лише до web-blueprint (`main`), щоб не ламати публічне кешування REST API.
+- Додано нові тести кешування API (`tests/test_api_caching.py`) + очищення кешу між тестами у `tests/conftest.py`; також синхронізовано тест доступу до web сторінки книги з поточним правилом `login_required`.
