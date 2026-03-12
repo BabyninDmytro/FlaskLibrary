@@ -383,7 +383,7 @@ def test_api_book_data_legacy_route_redirects(client, app):
     assert response.headers['Location'].endswith(f'/api/v1/books/{book_id}')
 
 
-def test_book_page_route_remains_html_after_rest_migration(client, app):
+def test_book_page_route_remains_html_after_rest_migration(client, app, user):
     with app.app_context():
         book = Book(
             title='HTML Book Page',
@@ -395,6 +395,9 @@ def test_book_page_route_remains_html_after_rest_migration(client, app):
         db.session.add(book)
         db.session.commit()
         book_id = book.id
+
+    login_response = login(client)
+    assert login_response.status_code == 302
 
     response = client.get(f'/book/{book_id}', follow_redirects=False)
 
