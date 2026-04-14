@@ -157,3 +157,5 @@ Notes:
 - (follow-up) Для PythonAnywhere WSGI додано завантаження `.env` через `python-dotenv` (`load_dotenv(PROJECT_HOME / '.env', override=False)`), щоб змінні з `.env` підхоплювались без ручного дублювання в коді WSGI.
 - (follow-up) У `pythonanywhere_wsgi.py` залишено закоментований блок `os.environ[...]` як явний шаблон PythonAnywhere-only override (можна розкоментувати окремі змінні, якщо потрібно відрізнятись від `.env`).
 - (follow-up) Додано залежність `python-dotenv` у `requirements.txt` для стабільного імпорту у WSGI-середовищі.
+- (follow-up) Виправлено валідацію `LOG_LEVEL` у `app/__init__.py`: замість `getattr(..., DEBUG)` тепер використовується явна мапа допустимих рівнів (`CRITICAL/ERROR/WARNING/INFO/DEBUG`), щоб невалідні значення (наприклад `INF0`) детектувались коректно.
+- (follow-up) Для невалідного `LOG_LEVEL` додано явний fallback на `INFO` з warning-повідомленням, щоб уникати тихого переходу на надмірно verbose `DEBUG` у проді.

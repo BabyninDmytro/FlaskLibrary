@@ -21,11 +21,20 @@ def _env_int(name, default):
 
 
 def _configure_logging():
-    log_level_name = os.getenv('LOG_LEVEL', 'DEBUG').upper()
-    log_level = getattr(logging, log_level_name, logging.DEBUG)
-    if not isinstance(log_level, int):
-        logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s')
-        logging.warning('Invalid LOG_LEVEL=%r. Falling back to DEBUG.', log_level_name)
+    valid_levels = {
+        'CRITICAL': logging.CRITICAL,
+        'ERROR': logging.ERROR,
+        'WARNING': logging.WARNING,
+        'INFO': logging.INFO,
+        'DEBUG': logging.DEBUG,
+    }
+
+    log_level_name = os.getenv('LOG_LEVEL', 'INFO').strip().upper()
+    log_level = valid_levels.get(log_level_name)
+
+    if log_level is None:
+        logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+        logging.warning('Invalid LOG_LEVEL=%r. Falling back to INFO.', log_level_name)
         return
 
     logging.basicConfig(level=log_level, format='%(levelname)s: %(message)s')
