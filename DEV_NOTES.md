@@ -146,3 +146,14 @@ Notes:
 - Для узгодженості даних додано інвалідацію API-кешу після mutating-операцій (`POST/PATCH/DELETE` для review/annotation).
 - Уточнено no-store політику: `no-store/no-cache` заголовки для авторизованих користувачів тепер застосовуються лише до web-blueprint (`main`), щоб не ламати публічне кешування REST API.
 - Додано нові тести кешування API (`tests/test_api_caching.py`) + очищення кешу між тестами у `tests/conftest.py`; також синхронізовано тест доступу до web сторінки книги з поточним правилом `login_required`.
+
+## 2026-04-14
+- Додано шаблон WSGI-входу для PythonAnywhere у `pythonanywhere_wsgi.py`: файл підключає проєкт у `sys.path`, виставляє дефолтні `FLASK_INSTANCE_PATH`/`FLASK_DB_PATH` та експортує `application` через `from app import app as application`.
+- У `app/__init__.py` винесено `SECRET_KEY` у змінну оточення: тепер ключ береться з `SECRET_KEY`, а якщо її немає — використовується fallback `change-me-in-production`.
+- (follow-up) Розширено env-конфігурацію (варіант 3): у `app/__init__.py` винесено `CACHE_TYPE`, `CACHE_DEFAULT_TIMEOUT`, `LOG_LEVEL`; додано безпечний парсинг int для timeout із fallback та warning-логом при невалідному значенні.
+- (follow-up) Оновлено `run.py`: `debug` тепер керується через `FLASK_DEBUG` (true/false), без хардкоду `debug=True`.
+- (follow-up) Оновлено `pythonanywhere_wsgi.py`: WSGI-ентріпойнт тепер експортує `application = create_app()` і за замовчуванням вимикає debug через `FLASK_DEBUG=false`.
+- (follow-up) Додано `.env.example` з повним переліком змінних для деплою/локального запуску (`SECRET_KEY`, `FLASK_DEBUG`, `LOG_LEVEL`, `FLASK_INSTANCE_PATH`, `FLASK_DB_PATH`, `CACHE_TYPE`, `CACHE_DEFAULT_TIMEOUT`, `PROJECT_HOME`).
+- (follow-up) Для PythonAnywhere WSGI додано завантаження `.env` через `python-dotenv` (`load_dotenv(PROJECT_HOME / '.env', override=False)`), щоб змінні з `.env` підхоплювались без ручного дублювання в коді WSGI.
+- (follow-up) У `pythonanywhere_wsgi.py` залишено закоментований блок `os.environ[...]` як явний шаблон PythonAnywhere-only override (можна розкоментувати окремі змінні, якщо потрібно відрізнятись від `.env`).
+- (follow-up) Додано залежність `python-dotenv` у `requirements.txt` для стабільного імпорту у WSGI-середовищі.
