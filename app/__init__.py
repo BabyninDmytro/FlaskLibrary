@@ -9,7 +9,38 @@ from sqlalchemy.exc import OperationalError
 from app.extensions import cache, db, login_manager
 
 
-logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s')
+def _env_int(name, default):
+    value = os.getenv(name)
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        logging.warning('Invalid integer for %s=%r. Using default %s.', name, value, default)
+        return default
+
+
+def _configure_logging():
+    valid_levels = {
+        'CRITICAL': logging.CRITICAL,
+        'ERROR': logging.ERROR,
+        'WARNING': logging.WARNING,
+        'INFO': logging.INFO,
+        'DEBUG': logging.DEBUG,
+    }
+
+    log_level_name = os.getenv('LOG_LEVEL', 'INFO').strip().upper()
+    log_level = valid_levels.get(log_level_name)
+
+    if log_level is None:
+        logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+        logging.warning('Invalid LOG_LEVEL=%r. Falling back to INFO.', log_level_name)
+        return
+
+    logging.basicConfig(level=log_level, format='%(levelname)s: %(message)s')
+
+
+_configure_logging()
 
 
 def _default_paths():
@@ -31,11 +62,11 @@ def create_app(test_config=None):
     )
 
     app.config.from_mapping(
-        SECRET_KEY='you-will-never-guess',
+        SECRET_KEY=os.getenv('SECRET_KEY', 'change-me-in-production'),
         SQLALCHEMY_DATABASE_URI=f"sqlite:///{db_path}",
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
-        CACHE_TYPE='SimpleCache',
-        CACHE_DEFAULT_TIMEOUT=60,
+        CACHE_TYPE=os.getenv('CACHE_TYPE', 'SimpleCache'),
+        CACHE_DEFAULT_TIMEOUT=_env_int('CACHE_DEFAULT_TIMEOUT', 60),
     )
 
     if test_config:
@@ -65,7 +96,6 @@ def create_app(test_config=None):
             response.headers['Pragma'] = 'no-cache'
             response.headers['Expires'] = '0'
         return response
-
 
     @login_manager.user_loader
     def _load_user(user_id):
