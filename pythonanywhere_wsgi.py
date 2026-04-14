@@ -14,7 +14,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 
-PROJECT_HOME = Path(os.getenv("PROJECT_HOME", "/home/<your_username>/FlaskLibrary")).resolve()
+PROJECT_HOME = Path(os.getenv("PROJECT_HOME", "/home/DmytroBabynin/FlaskLibrary")).resolve()
 
 if str(PROJECT_HOME) not in sys.path:
     sys.path.insert(0, str(PROJECT_HOME))
