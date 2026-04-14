@@ -9,17 +9,31 @@ Usage on PythonAnywhere:
 
 import os
 import sys
+from pathlib import Path
+
+from dotenv import load_dotenv
 
 
-PROJECT_HOME = os.getenv("PROJECT_HOME", "/home/<your_username>/FlaskLibrary")
+PROJECT_HOME = Path(os.getenv("PROJECT_HOME", "/home/<your_username>/FlaskLibrary")).resolve()
 
-if PROJECT_HOME not in sys.path:
-    sys.path.insert(0, PROJECT_HOME)
+if str(PROJECT_HOME) not in sys.path:
+    sys.path.insert(0, str(PROJECT_HOME))
 
-# Optional runtime configuration for this project:
+# Load .env from project root for PythonAnywhere runtime.
+# `override=False` keeps Web tab Environment variables higher priority.
+load_dotenv(PROJECT_HOME / ".env", override=False)
+
+# Optional defaults if values are missing in .env / Web environment variables.
 os.environ.setdefault("FLASK_INSTANCE_PATH", f"{PROJECT_HOME}/instance")
 os.environ.setdefault("FLASK_DB_PATH", f"{PROJECT_HOME}/instance/myDB.db")
 os.environ.setdefault("FLASK_DEBUG", "false")
+
+# PythonAnywhere-only overrides (uncomment if you need values different from .env):
+# os.environ["FLASK_INSTANCE_PATH"] = "/home/DmytroBabynin/FlaskLibrary/instance"
+# os.environ["FLASK_DB_PATH"] = "/home/DmytroBabynin/FlaskLibrary/instance/myDB.db"
+# os.environ["SECRET_KEY"] = "твій_секрет"
+# os.environ["FLASK_DEBUG"] = "false"
+# os.environ["LOG_LEVEL"] = "INFO"
 
 from app import create_app
 

@@ -154,3 +154,6 @@ Notes:
 - (follow-up) Оновлено `run.py`: `debug` тепер керується через `FLASK_DEBUG` (true/false), без хардкоду `debug=True`.
 - (follow-up) Оновлено `pythonanywhere_wsgi.py`: WSGI-ентріпойнт тепер експортує `application = create_app()` і за замовчуванням вимикає debug через `FLASK_DEBUG=false`.
 - (follow-up) Додано `.env.example` з повним переліком змінних для деплою/локального запуску (`SECRET_KEY`, `FLASK_DEBUG`, `LOG_LEVEL`, `FLASK_INSTANCE_PATH`, `FLASK_DB_PATH`, `CACHE_TYPE`, `CACHE_DEFAULT_TIMEOUT`, `PROJECT_HOME`).
+- (follow-up) Для PythonAnywhere WSGI додано завантаження `.env` через `python-dotenv` (`load_dotenv(PROJECT_HOME / '.env', override=False)`), щоб змінні з `.env` підхоплювались без ручного дублювання в коді WSGI.
+- (follow-up) У `pythonanywhere_wsgi.py` залишено закоментований блок `os.environ[...]` як явний шаблон PythonAnywhere-only override (можна розкоментувати окремі змінні, якщо потрібно відрізнятись від `.env`).
+- (follow-up) Додано залежність `python-dotenv` у `requirements.txt` для стабільного імпорту у WSGI-середовищі.
