@@ -163,3 +163,5 @@ Notes:
 - У `app/services/book_service.py` додано параметр `include_hidden` для `build_books_query()`, `paginate_books()` і `get_book_or_404()`, щоб централізовано керувати фільтрацією hidden-книг у запитах.
 - У `app/web_routes.py` маршрути `/home`, `/book/<id>`, `/book/<id>/read` тепер передають `include_hidden=_is_librarian()`: librarian бачить приховані книги, reader — ні.
 - Додано/оновлено тести для нової політики доступу (`tests/test_auth_search.py`, `tests/test_route_access.py`): перевіряється, що hidden-книги не показуються reader у списку/пошуку та недоступні по прямому URL, але доступні librarian.
+- Змінено UX для direct-access hidden-книг у web: замість «сухого» `404` для reader тепер повертається стилізована інформаційна сторінка `403` (`templates/hidden_book_access_denied.html`) з діями `Back to home` і `Logout`.
+- У `app/web_routes.py` додано helper `_render_hidden_book_access_denied()`: для `/book/<id>` і `/book/<id>/read` при спробі reader відкрити hidden-книгу рендериться окрема сторінка доступу, тоді як для реально неіснуючих книг зберігається `404`.

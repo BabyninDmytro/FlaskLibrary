@@ -5,7 +5,7 @@ from werkzeug.exceptions import NotFound
 
 from app.extensions import db
 from app.forms import AnnotationForm, LoginForm, RegistrationForm, ReviewForm
-from app.models import Reader
+from app.models import Book, Reader
 from app.services.annotation_service import create_annotation, delete_annotation as delete_annotation_service, get_annotation, list_book_annotations_desc
 from app.services.book_service import get_book_or_404, paginate_books
 from app.services.reader_service import get_reader_by_email, get_reader_or_404
@@ -16,6 +16,17 @@ bp = Blueprint('main', __name__)
 
 def _is_librarian():
     return current_user.is_authenticated and current_user.role == 'librarian'
+
+
+def _render_hidden_book_access_denied():
+    return (
+        render_template(
+            'hidden_book_access_denied.html',
+            home_url=url_for('main.home'),
+            logout_url=url_for('main.logout'),
+        ),
+        403,
+    )
 
 
 @bp.app_context_processor
@@ -112,6 +123,9 @@ def book(book_id):
     except NotFound:
         if not current_user.is_authenticated:
             return redirect(url_for('main.login'))
+        hidden_book = db.session.get(Book, book_id)
+        if hidden_book and hidden_book.is_hidden and not _is_librarian():
+            return _render_hidden_book_access_denied()
         raise
     review_form = ReviewForm(prefix='review')
     annotation_form = AnnotationForm(prefix='annotation')
@@ -161,6 +175,9 @@ def book_read(book_id):
     except NotFound:
         if not current_user.is_authenticated:
             return redirect(url_for('main.login'))
+        hidden_book = db.session.get(Book, book_id)
+        if hidden_book and hidden_book.is_hidden and not _is_librarian():
+            return _render_hidden_book_access_denied()
         raise
     annotations = list_book_annotations_desc(book)
 
