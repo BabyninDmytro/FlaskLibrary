@@ -165,3 +165,67 @@ def test_home_pagination_limits_to_10_per_page(client, user, app):
 
     assert b'Paginated Book 11' in page_2.data
     assert b'Paginated Book 12' in page_2.data
+
+
+def test_home_hides_hidden_books_for_reader(client, user, app):
+    with app.app_context():
+        db.session.add_all(
+            [
+                Book(
+                    title='Visible Shelf Book',
+                    author_name='A',
+                    author_surname='B',
+                    month='January',
+                    year=2024,
+                    is_hidden=False,
+                ),
+                Book(
+                    title='Hidden Shelf Book',
+                    author_name='A',
+                    author_surname='B',
+                    month='January',
+                    year=2024,
+                    is_hidden=True,
+                ),
+            ]
+        )
+        db.session.commit()
+
+    login(client)
+    response = client.get('/home', follow_redirects=True)
+
+    assert response.status_code == 200
+    assert b'Visible Shelf Book' in response.data
+    assert b'Hidden Shelf Book' not in response.data
+
+
+def test_home_search_hides_hidden_books_for_reader(client, user, app):
+    with app.app_context():
+        db.session.add_all(
+            [
+                Book(
+                    title='Unique Visible Result',
+                    author_name='A',
+                    author_surname='B',
+                    month='January',
+                    year=2024,
+                    is_hidden=False,
+                ),
+                Book(
+                    title='Unique Hidden Result',
+                    author_name='A',
+                    author_surname='B',
+                    month='January',
+                    year=2024,
+                    is_hidden=True,
+                ),
+            ]
+        )
+        db.session.commit()
+
+    login(client)
+    response = home_search(client, 'Unique')
+
+    assert response.status_code == 200
+    assert b'Unique Visible Result' in response.data
+    assert b'Unique Hidden Result' not in response.data
