@@ -1098,3 +1098,31 @@ def test_book_read_route_shows_hidden_access_denied_page_for_reader(client, user
     assert b'This book is hidden' in response.data
     assert b'Back to home' in response.data
     assert b'Logout' in response.data
+
+
+def test_book_route_shows_custom_not_found_page_for_missing_book(client, user):
+    ensure_guest(client)
+    login_response = login(client, email=user)
+    assert login_response.status_code == 302
+
+    response = client.get('/book/999999', follow_redirects=False)
+
+    assert response.status_code == 404
+    assert b'Book not found' in response.data
+    assert b'ID <strong>999999</strong>' in response.data
+    assert b'Back to home' in response.data
+    assert b'Logout' in response.data
+
+
+def test_book_read_route_shows_custom_not_found_page_for_missing_book(client, user):
+    ensure_guest(client)
+    login_response = login(client, email=user)
+    assert login_response.status_code == 302
+
+    response = client.get('/book/999999/read', follow_redirects=False)
+
+    assert response.status_code == 404
+    assert b'Book not found' in response.data
+    assert b'ID <strong>999999</strong>' in response.data
+    assert b'Back to home' in response.data
+    assert b'Logout' in response.data

@@ -29,6 +29,18 @@ def _render_hidden_book_access_denied():
     )
 
 
+def _render_book_not_found(book_id):
+    return (
+        render_template(
+            'book_not_found.html',
+            book_id=book_id,
+            home_url=url_for('main.home'),
+            logout_url=url_for('main.logout'),
+        ),
+        404,
+    )
+
+
 @bp.app_context_processor
 def inject_role_flags():
     return {'is_librarian': _is_librarian()}
@@ -126,7 +138,7 @@ def book(book_id):
         hidden_book = db.session.get(Book, book_id)
         if hidden_book and hidden_book.is_hidden and not _is_librarian():
             return _render_hidden_book_access_denied()
-        raise
+        return _render_book_not_found(book_id)
     review_form = ReviewForm(prefix='review')
     annotation_form = AnnotationForm(prefix='annotation')
 
@@ -178,7 +190,7 @@ def book_read(book_id):
         hidden_book = db.session.get(Book, book_id)
         if hidden_book and hidden_book.is_hidden and not _is_librarian():
             return _render_hidden_book_access_denied()
-        raise
+        return _render_book_not_found(book_id)
     annotations = list_book_annotations_desc(book)
 
     book_template = f'book_reads/book_{book.id}_read.html'

@@ -165,3 +165,6 @@ Notes:
 - Додано/оновлено тести для нової політики доступу (`tests/test_auth_search.py`, `tests/test_route_access.py`): перевіряється, що hidden-книги не показуються reader у списку/пошуку та недоступні по прямому URL, але доступні librarian.
 - Змінено UX для direct-access hidden-книг у web: замість «сухого» `404` для reader тепер повертається стилізована інформаційна сторінка `403` (`templates/hidden_book_access_denied.html`) з діями `Back to home` і `Logout`.
 - У `app/web_routes.py` додано helper `_render_hidden_book_access_denied()`: для `/book/<id>` і `/book/<id>/read` при спробі reader відкрити hidden-книгу рендериться окрема сторінка доступу, тоді як для реально неіснуючих книг зберігається `404`.
+- Додано окрему стилізовану сторінку `404` для випадку, коли книги взагалі не існує: `templates/book_not_found.html` (з кнопками `Back to home` і `Logout`, виводиться ID книги).
+- У `app/web_routes.py` додано `_render_book_not_found(book_id)`: тепер `/book/<id>` і `/book/<id>/read` для неіснуючих ID повертають інформативний HTML з кодом `404` замість стандартної сторінки Flask.
+- Додано тести `tests/test_route_access.py` для перевірки кастомної not-found сторінки книги (для `/book/999999` і `/book/999999/read`).

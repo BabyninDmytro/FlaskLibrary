@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Book not found</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at top, #f9fbff, #e7edf6 45%, #dfe7f3 100%);
+      color: #1c2434;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      box-sizing: border-box;
+    }
+
+    .card {
+      width: min(680px, 100%);
+      background: #ffffff;
+      border-radius: 20px;
+      padding: 28px;
+      box-shadow: 0 18px 40px rgba(17, 24, 39, 0.12);
+    }
+
+    h1 {
+      margin: 0 0 12px;
+      color: #1f2a44;
+      font-size: 30px;
+    }
+
+    p {
+      margin: 0 0 20px;
+      color: #4b5567;
+      line-height: 1.5;
+      font-size: 16px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      text-decoration: none;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-weight: 600;
+      font-size: 14px;
+      border: 1px solid transparent;
+    }
+
+    .btn-primary {
+      background: #2b6cb0;
+      color: #ffffff;
+    }
+
+    .btn-secondary {
+      background: #e7edf6;
+      color: #2b3648;
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Book not found</h1>
+    <p>
+      We could not find a book with ID <strong>{{ book_id }}</strong>.
+      Please return to the catalog and choose another book.
+    </p>
+    <div class="actions">
+      <a class="btn btn-primary" href="{{ home_url }}">Back to home</a>
+      <a class="btn btn-secondary" href="{{ logout_url }}">Logout</a>
+    </div>
+  </main>
+</body>
+</html>
