@@ -5,7 +5,7 @@ from werkzeug.exceptions import NotFound
 
 from app.extensions import db
 from app.forms import AnnotationForm, LoginForm, RegistrationForm, ReviewForm
-from app.models import Reader
+from app.models import Book, Reader
 from app.services.annotation_service import create_annotation, delete_annotation as delete_annotation_service, get_annotation, list_book_annotations_desc
 from app.services.book_service import get_book_or_404, paginate_books
 from app.services.reader_service import get_reader_by_email, get_reader_or_404
@@ -16,6 +16,29 @@ bp = Blueprint('main', __name__)
 
 def _is_librarian():
     return current_user.is_authenticated and current_user.role == 'librarian'
+
+
+def _render_hidden_book_access_denied():
+    return (
+        render_template(
+            'hidden_book_access_denied.html',
+            home_url=url_for('main.home'),
+            logout_url=url_for('main.logout'),
+        ),
+        403,
+    )
+
+
+def _render_book_not_found(book_id):
+    return (
+        render_template(
+            'book_not_found.html',
+            book_id=book_id,
+            home_url=url_for('main.home'),
+            logout_url=url_for('main.logout'),
+        ),
+        404,
+    )
 
 
 @bp.app_context_processor
@@ -80,7 +103,12 @@ def home():
 
     search_query = request.args.get('search', '').strip()
     page = request.args.get('page', 1, type=int)
-    books = paginate_books(search_query=search_query, page=page, per_page=10)
+    books = paginate_books(
+        search_query=search_query,
+        page=page,
+        per_page=10,
+        include_hidden=_is_librarian(),
+    )
 
     return render_template('home.html', books=books, search_query=search_query, is_librarian=_is_librarian())
 
@@ -103,11 +131,14 @@ def reviews(review_id):
 @login_required
 def book(book_id):
     try:
-        book = get_book_or_404(book_id)
+        book = get_book_or_404(book_id, include_hidden=_is_librarian())
     except NotFound:
         if not current_user.is_authenticated:
             return redirect(url_for('main.login'))
-        raise
+        hidden_book = db.session.get(Book, book_id)
+        if hidden_book and hidden_book.is_hidden and not _is_librarian():
+            return _render_hidden_book_access_denied()
+        return _render_book_not_found(book_id)
     review_form = ReviewForm(prefix='review')
     annotation_form = AnnotationForm(prefix='annotation')
 
@@ -152,11 +183,14 @@ def book(book_id):
 @login_required
 def book_read(book_id):
     try:
-        book = get_book_or_404(book_id)
+        book = get_book_or_404(book_id, include_hidden=_is_librarian())
     except NotFound:
         if not current_user.is_authenticated:
             return redirect(url_for('main.login'))
-        raise
+        hidden_book = db.session.get(Book, book_id)
+        if hidden_book and hidden_book.is_hidden and not _is_librarian():
+            return _render_hidden_book_access_denied()
+        return _render_book_not_found(book_id)
     annotations = list_book_annotations_desc(book)
 
     book_template = f'book_reads/book_{book.id}_read.html'

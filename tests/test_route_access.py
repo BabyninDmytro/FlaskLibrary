@@ -1026,3 +1026,103 @@ def test_book_read_shows_annotation_delete_for_librarian(client, app, librarian)
 
     assert response.status_code == 200
     assert f'/annotations/{annotation_id}/delete'.encode() in response.data
+
+
+def test_book_route_shows_hidden_access_denied_page_for_reader(client, user, app):
+    ensure_guest(client)
+    login_response = login(client, email=user)
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        book = Book(
+            title='Reader Hidden Direct Access',
+            author_name='A',
+            author_surname='B',
+            month='Jan',
+            year=2025,
+            is_hidden=True,
+        )
+        db.session.add(book)
+        db.session.commit()
+        book_id = book.id
+
+    response = client.get(f'/book/{book_id}', follow_redirects=False)
+    assert response.status_code == 403
+    assert b'This book is hidden' in response.data
+    assert b'Back to home' in response.data
+    assert b'Logout' in response.data
+
+
+def test_book_route_allows_hidden_book_for_librarian(client, app, librarian):
+    ensure_guest(client)
+    login_response = login(client, email=librarian)
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        book = Book(
+            title='Librarian Hidden Direct Access',
+            author_name='A',
+            author_surname='B',
+            month='Jan',
+            year=2025,
+            is_hidden=True,
+        )
+        db.session.add(book)
+        db.session.commit()
+        book_id = book.id
+
+    response = client.get(f'/book/{book_id}', follow_redirects=False)
+    assert response.status_code == 200
+
+
+def test_book_read_route_shows_hidden_access_denied_page_for_reader(client, user, app):
+    ensure_guest(client)
+    login_response = login(client, email=user)
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        book = Book(
+            title='Reader Hidden Read Access',
+            author_name='A',
+            author_surname='B',
+            month='Jan',
+            year=2025,
+            is_hidden=True,
+        )
+        db.session.add(book)
+        db.session.commit()
+        book_id = book.id
+
+    response = client.get(f'/book/{book_id}/read', follow_redirects=False)
+    assert response.status_code == 403
+    assert b'This book is hidden' in response.data
+    assert b'Back to home' in response.data
+    assert b'Logout' in response.data
+
+
+def test_book_route_shows_custom_not_found_page_for_missing_book(client, user):
+    ensure_guest(client)
+    login_response = login(client, email=user)
+    assert login_response.status_code == 302
+
+    response = client.get('/book/999999', follow_redirects=False)
+
+    assert response.status_code == 404
+    assert b'Book not found' in response.data
+    assert b'ID <strong>999999</strong>' in response.data
+    assert b'Back to home' in response.data
+    assert b'Logout' in response.data
+
+
+def test_book_read_route_shows_custom_not_found_page_for_missing_book(client, user):
+    ensure_guest(client)
+    login_response = login(client, email=user)
+    assert login_response.status_code == 302
+
+    response = client.get('/book/999999/read', follow_redirects=False)
+
+    assert response.status_code == 404
+    assert b'Book not found' in response.data
+    assert b'ID <strong>999999</strong>' in response.data
+    assert b'Back to home' in response.data
+    assert b'Logout' in response.data
