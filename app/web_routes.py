@@ -80,7 +80,12 @@ def home():
 
     search_query = request.args.get('search', '').strip()
     page = request.args.get('page', 1, type=int)
-    books = paginate_books(search_query=search_query, page=page, per_page=10)
+    books = paginate_books(
+        search_query=search_query,
+        page=page,
+        per_page=10,
+        include_hidden=_is_librarian(),
+    )
 
     return render_template('home.html', books=books, search_query=search_query, is_librarian=_is_librarian())
 
@@ -103,7 +108,7 @@ def reviews(review_id):
 @login_required
 def book(book_id):
     try:
-        book = get_book_or_404(book_id)
+        book = get_book_or_404(book_id, include_hidden=_is_librarian())
     except NotFound:
         if not current_user.is_authenticated:
             return redirect(url_for('main.login'))
@@ -152,7 +157,7 @@ def book(book_id):
 @login_required
 def book_read(book_id):
     try:
-        book = get_book_or_404(book_id)
+        book = get_book_or_404(book_id, include_hidden=_is_librarian())
     except NotFound:
         if not current_user.is_authenticated:
             return redirect(url_for('main.login'))

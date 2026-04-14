@@ -1026,3 +1026,47 @@ def test_book_read_shows_annotation_delete_for_librarian(client, app, librarian)
 
     assert response.status_code == 200
     assert f'/annotations/{annotation_id}/delete'.encode() in response.data
+
+
+def test_book_route_returns_404_for_hidden_book_reader(client, user, app):
+    ensure_guest(client)
+    login_response = login(client, email=user)
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        book = Book(
+            title='Reader Hidden Direct Access',
+            author_name='A',
+            author_surname='B',
+            month='Jan',
+            year=2025,
+            is_hidden=True,
+        )
+        db.session.add(book)
+        db.session.commit()
+        book_id = book.id
+
+    response = client.get(f'/book/{book_id}', follow_redirects=False)
+    assert response.status_code == 404
+
+
+def test_book_route_allows_hidden_book_for_librarian(client, app, librarian):
+    ensure_guest(client)
+    login_response = login(client, email=librarian)
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        book = Book(
+            title='Librarian Hidden Direct Access',
+            author_name='A',
+            author_surname='B',
+            month='Jan',
+            year=2025,
+            is_hidden=True,
+        )
+        db.session.add(book)
+        db.session.commit()
+        book_id = book.id
+
+    response = client.get(f'/book/{book_id}', follow_redirects=False)
+    assert response.status_code == 200

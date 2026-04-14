@@ -4,8 +4,11 @@ from app.extensions import db
 from app.models import Book
 
 
-def build_books_query(search_query=''):
+def build_books_query(search_query='', include_hidden=True):
     stmt = select(Book)
+
+    if not include_hidden:
+        stmt = stmt.where(Book.is_hidden.is_(False))
 
     if search_query:
         terms = [term for term in search_query.split() if term]
@@ -29,8 +32,8 @@ def build_books_query(search_query=''):
     return stmt
 
 
-def paginate_books(search_query='', page=1, per_page=10):
-    stmt = build_books_query(search_query)
+def paginate_books(search_query='', page=1, per_page=10, include_hidden=True):
+    stmt = build_books_query(search_query, include_hidden=include_hidden)
     stmt = stmt.order_by(Book.year.desc(), Book.month.asc(), Book.title.asc())
     return db.paginate(
         stmt,
@@ -40,8 +43,10 @@ def paginate_books(search_query='', page=1, per_page=10):
     )
 
 
-def get_book_or_404(book_id, description='There is no book with this ID.'):
+def get_book_or_404(book_id, description='There is no book with this ID.', include_hidden=True):
     stmt = select(Book).where(Book.id == book_id)
+    if not include_hidden:
+        stmt = stmt.where(Book.is_hidden.is_(False))
     return db.first_or_404(stmt, description=description)
 
 
