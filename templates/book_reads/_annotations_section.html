@@ -5,6 +5,10 @@
       <p class="annotation-author">{{ annotation.author.name }} {{ annotation.author.surname }}</p>
       <p class="annotation-text">{{ annotation.text }}</p>
       {% if is_librarian %}
+        <form class="annotation-actions" action="{{ url_for('main.edit_annotation', annotation_id=annotation.id) }}" method="post">
+          <textarea name="text" rows="2" maxlength="200" required>{{ annotation.text }}</textarea>
+          <button class="admin-inline-button" type="submit">Save annotation</button>
+        </form>
         <form class="annotation-actions" action="{{ url_for('main.delete_annotation', annotation_id=annotation.id) }}" method="post">
           <button class="admin-inline-button" type="submit">Delete annotation</button>
         </form>
