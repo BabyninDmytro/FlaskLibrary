@@ -55,6 +55,8 @@ def test_authenticated_user_is_redirected_from_login(client, user):
 
 
 def test_register_creates_user_and_redirects_to_home(client, app):
+    ensure_guest(client)
+
     response = client.post(
         '/register',
         data={

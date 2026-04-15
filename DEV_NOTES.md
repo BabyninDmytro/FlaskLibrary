@@ -184,3 +184,13 @@ Notes:
 - Додано окрему стилізовану сторінку `404` для випадку, коли книги взагалі не існує: `templates/book_not_found.html` (з кнопками `Back to home` і `Logout`, виводиться ID книги).
 - У `app/web_routes.py` додано `_render_book_not_found(book_id)`: тепер `/book/<id>` і `/book/<id>/read` для неіснуючих ID повертають інформативний HTML з кодом `404` замість стандартної сторінки Flask.
 - Додано тести `tests/test_route_access.py` для перевірки кастомної not-found сторінки книги (для `/book/999999` і `/book/999999/read`).
+
+## 2026-04-15
+- Оновлено тести стабільності авторизації під час реєстрації: перед сценарієм `test_register_creates_user_and_redirects_to_home` примусово очищається гостьова/remember-сесія через `ensure_guest(client)`, що прибирає попередній SQLAlchemy warning під час `db.session.commit()` у `/register`.
+- Додано негативні перевірки для toggle hidden:
+  - API: `POST /api/v1/books/<id>/toggle-hidden` повертає `404` для неіснуючої книги навіть під librarian-сесією.
+  - Web: `POST /book/<id>/toggle-hidden` повертає `404` для неіснуючої книги під librarian-сесією.
+- Зменшено крихкість UI-тесту сторінки читання книги: замінено жорстку перевірку повного порядку блоків за індексами на перевірку наявності ключових семантичних елементів контенту.
+- Додано контрактні smoke-тести OpenAPI (`tests/test_openapi_contract.py`), які перевіряють:
+  - наявність у `openapi.yaml` ключових path-ів API v1;
+  - наявність очікуваних response-кодів для `toggle-hidden` (200/401/403/404).
