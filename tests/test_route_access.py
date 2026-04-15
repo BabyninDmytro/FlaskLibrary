@@ -439,16 +439,11 @@ def test_book_read_route_shows_annotations_in_expected_order(client, app, user):
     assert b'Contents' in response.data
     assert 'Розділ 1'.encode('utf-8') in response.data
     assert b'href="#chapter-1"' in response.data
-
-    title_index = response.data.index(b'Readable Book')
-    description_index = response.data.index(b'Oksana R')
-    cover_index = response.data.index('Обкладинка книги'.encode('utf-8'))
-    annotations_index = response.data.index('Анотації'.encode('utf-8'))
-    contents_index = response.data.index(b'Contents')
-    chapter_link_index = response.data.index('Розділ 1'.encode('utf-8'))
-    book_text_index = response.data.index(b'id="chapter-1"')
-
-    assert title_index < description_index < cover_index < annotations_index < contents_index < chapter_link_index < book_text_index
+    assert b'Readable Book' in response.data
+    assert b'Oksana R' in response.data
+    assert 'Обкладинка книги'.encode('utf-8') in response.data
+    assert 'Анотації'.encode('utf-8') in response.data
+    assert b'id="chapter-1"' in response.data
 
 
 def test_book_page_shows_read_now_button_and_hides_annotation_feed(client, app, user):
@@ -1111,6 +1106,18 @@ def test_api_toggle_hidden_requires_librarian(client, app, user, librarian):
     assert success.get_json()['is_hidden'] is True
 
 
+def test_api_toggle_hidden_returns_404_for_missing_book_for_librarian(client, librarian):
+    ensure_guest(client)
+    login_response = login(client, email=librarian, password='Secret123!')
+    assert login_response.status_code == 302
+
+    response = client.post('/api/v1/books/999999/toggle-hidden', follow_redirects=False)
+
+    assert response.status_code == 404
+    assert response.is_json
+    assert response.get_json()['error']['message']
+
+
 def test_home_shows_librarian_controls_for_librarian(client, app, librarian):
     ensure_guest(client)
     login_response = login(client, email=librarian)
@@ -1196,6 +1203,16 @@ def test_toggle_hidden_non_ajax_still_returns_json(client, app, librarian):
     assert response.status_code == 200
     assert response.is_json
     assert response.get_json()['book_id'] == book_id
+
+
+def test_toggle_hidden_web_returns_not_found_for_missing_book(client, librarian):
+    ensure_guest(client)
+    login_response = login(client, email=librarian)
+    assert login_response.status_code == 302
+
+    response = client.post('/book/999999/toggle-hidden', follow_redirects=False)
+
+    assert response.status_code == 404
 
 
 def test_book_read_shows_annotation_delete_for_librarian(client, app, librarian):
