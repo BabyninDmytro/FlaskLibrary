@@ -604,7 +604,7 @@ def test_api_review_patch_requires_authentication(client, app, user):
 
 
 
-def test_api_review_patch_returns_403_for_non_owner(client, app, user):
+def test_api_review_patch_returns_403_for_reader(client, app, user):
     with app.app_context():
         owner = db.session.scalar(select(Reader).filter_by(email=user))
         intruder = Reader(name='Intruder', surname='User', email='intruder@example.com', role='reader')
@@ -627,12 +627,13 @@ def test_api_review_patch_returns_403_for_non_owner(client, app, user):
     response = client.patch(f'/api/v1/reviews/{review_id}', json={'text': 'Hacked'}, follow_redirects=False)
 
     assert response.status_code == 403
+    assert response.get_json()['error']['message'] == 'Only librarians can update reviews.'
 
 
 
-def test_api_review_patch_returns_422_for_invalid_data(client, app, user):
+def test_api_review_patch_returns_422_for_invalid_data_librarian(client, app, user, librarian):
     ensure_guest(client)
-    login_response = login(client, email=user, password='Secret123!')
+    login_response = login(client, email=librarian, password='Secret123!')
     assert login_response.status_code == 302
 
     with app.app_context():
@@ -652,9 +653,9 @@ def test_api_review_patch_returns_422_for_invalid_data(client, app, user):
 
 
 
-def test_api_review_patch_updates_owned_review(client, app, user):
+def test_api_review_patch_updates_review_for_librarian(client, app, user, librarian):
     ensure_guest(client)
-    login_response = login(client, email=user, password='Secret123!')
+    login_response = login(client, email=librarian, password='Secret123!')
     assert login_response.status_code == 302
 
     with app.app_context():
@@ -699,7 +700,7 @@ def test_api_review_delete_requires_authentication(client, app, user):
 
 
 
-def test_api_review_delete_removes_owned_review(client, app, user):
+def test_api_review_delete_returns_403_for_reader(client, app, user):
     ensure_guest(client)
     login_response = login(client, email=user, password='Secret123!')
     assert login_response.status_code == 302
@@ -716,6 +717,29 @@ def test_api_review_delete_removes_owned_review(client, app, user):
 
     response = client.delete(f'/api/v1/reviews/{review_id}', follow_redirects=False)
 
+    assert response.status_code == 403
+
+    with app.app_context():
+        assert db.session.scalar(select(Review).filter_by(id=review_id)) is not None
+
+
+def test_api_review_delete_allowed_for_librarian(client, app, user, librarian):
+    ensure_guest(client)
+    login_response = login(client, email=librarian, password='Secret123!')
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        owner = db.session.scalar(select(Reader).filter_by(email=user))
+        book = Book(title='Librarian Delete Review', author_name='K', author_surname='L', month='October', year=2024)
+        db.session.add(book)
+        db.session.commit()
+        review = Review(text='Delete as librarian', stars=1, book_id=book.id, reviewer_id=owner.id)
+        db.session.add(review)
+        db.session.commit()
+        review_id = review.id
+
+    response = client.delete(f'/api/v1/reviews/{review_id}', follow_redirects=False)
+
     assert response.status_code == 204
 
     with app.app_context():
@@ -723,7 +747,7 @@ def test_api_review_delete_removes_owned_review(client, app, user):
 
 
 
-def test_api_annotation_patch_and_delete_for_owner(client, app, user):
+def test_api_annotation_patch_and_delete_for_reader(client, app, user):
     ensure_guest(client)
     login_response = login(client, email=user, password='Secret123!')
     assert login_response.status_code == 302
@@ -743,14 +767,14 @@ def test_api_annotation_patch_and_delete_for_owner(client, app, user):
         json={'text': 'After note'},
         follow_redirects=False,
     )
-    assert patch_response.status_code == 200
-    assert patch_response.get_json()['text'] == 'After note'
+    assert patch_response.status_code == 403
+    assert patch_response.get_json()['error']['message'] == 'Only librarians can update annotations.'
 
     delete_response = client.delete(f'/api/v1/annotations/{annotation_id}', follow_redirects=False)
-    assert delete_response.status_code == 204
+    assert delete_response.status_code == 403
 
     with app.app_context():
-        assert db.session.scalar(select(Annotation).filter_by(id=annotation_id)) is None
+        assert db.session.scalar(select(Annotation).filter_by(id=annotation_id)) is not None
 
 
 
@@ -778,12 +802,54 @@ def test_api_annotation_patch_returns_401_403_422(client, app, user):
     assert login_response.status_code == 302
     forbidden = client.patch(f'/api/v1/annotations/{annotation_id}', json={'text': 'x'}, follow_redirects=False)
     assert forbidden.status_code == 403
+    assert forbidden.get_json()['error']['message'] == 'Only librarians can update annotations.'
 
     ensure_guest(client)
-    login_response = login(client, email=user, password='Secret123!')
+
+
+def test_api_annotation_patch_returns_422_for_librarian(client, app, user, librarian):
+    ensure_guest(client)
+    login_response = login(client, email=librarian, password='Secret123!')
     assert login_response.status_code == 302
+
+    with app.app_context():
+        owner = db.session.scalar(select(Reader).filter_by(email=user))
+        book = Book(title='Annotation Validation Librarian', author_name='O', author_surname='P', month='December', year=2024)
+        db.session.add(book)
+        db.session.commit()
+
+        annotation = Annotation(text='Guarded', book_id=book.id, reviewer_id=owner.id)
+        db.session.add(annotation)
+        db.session.commit()
+        annotation_id = annotation.id
+
     invalid = client.patch(f'/api/v1/annotations/{annotation_id}', json={'text': ''}, follow_redirects=False)
     assert invalid.status_code == 422
+
+
+def test_api_annotation_patch_updates_annotation_for_librarian(client, app, user, librarian):
+    ensure_guest(client)
+    login_response = login(client, email=librarian, password='Secret123!')
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        owner = db.session.scalar(select(Reader).filter_by(email=user))
+        book = Book(title='Annotation Update Librarian', author_name='O', author_surname='P', month='December', year=2024)
+        db.session.add(book)
+        db.session.commit()
+
+        annotation = Annotation(text='Before librarian edit', book_id=book.id, reviewer_id=owner.id)
+        db.session.add(annotation)
+        db.session.commit()
+        annotation_id = annotation.id
+
+    response = client.patch(
+        f'/api/v1/annotations/{annotation_id}',
+        json={'text': 'After librarian edit'},
+        follow_redirects=False,
+    )
+    assert response.status_code == 200
+    assert response.get_json()['text'] == 'After librarian edit'
 
 
 
@@ -791,6 +857,28 @@ def test_api_annotation_delete_returns_404_for_missing_annotation(client):
     response = client.delete('/api/v1/annotations/999999', follow_redirects=False)
 
     assert response.status_code == 404
+
+
+def test_api_annotation_delete_allowed_for_librarian(client, app, user, librarian):
+    ensure_guest(client)
+    login_response = login(client, email=librarian, password='Secret123!')
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        owner = db.session.scalar(select(Reader).filter_by(email=user))
+        book = Book(title='Librarian Delete Annotation', author_name='A', author_surname='B', month='Nov', year=2024)
+        db.session.add(book)
+        db.session.commit()
+        annotation = Annotation(text='Delete note as librarian', book_id=book.id, reviewer_id=owner.id)
+        db.session.add(annotation)
+        db.session.commit()
+        annotation_id = annotation.id
+
+    response = client.delete(f'/api/v1/annotations/{annotation_id}', follow_redirects=False)
+    assert response.status_code == 204
+
+    with app.app_context():
+        assert db.session.scalar(select(Annotation).filter_by(id=annotation_id)) is None
 
 
 def test_api_book_404_uses_json_error_envelope(client):
@@ -867,14 +955,40 @@ def test_api_create_review_validation_and_success(client, app, user):
 
 
 
-def test_api_create_annotation_validation_and_success(client, app, user):
+def test_api_create_annotation_forbidden_for_reader(client, app, user):
     ensure_guest(client)
     login_response = login(client, email=user, password='Secret123!')
     assert login_response.status_code == 302
 
     with app.app_context():
-        reader = db.session.scalar(select(Reader).filter_by(email=user))
         book = Book(title='Create Annotation Success', author_name='EE', author_surname='FF', month='Mar', year=2024)
+        db.session.add(book)
+        db.session.commit()
+        book_id = book.id
+
+    invalid = client.post(
+        f'/api/v1/books/{book_id}/annotations',
+        json={'text': ''},
+        follow_redirects=False,
+    )
+    assert invalid.status_code == 403
+
+    success = client.post(
+        f'/api/v1/books/{book_id}/annotations',
+        json={'text': 'Created annotation via API'},
+        follow_redirects=False,
+    )
+    assert success.status_code == 403
+
+
+def test_api_create_annotation_validation_and_success_for_librarian(client, app, librarian):
+    ensure_guest(client)
+    login_response = login(client, email=librarian, password='Secret123!')
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        reader = db.session.scalar(select(Reader).filter_by(email=librarian))
+        book = Book(title='Create Annotation Success Librarian', author_name='EE', author_surname='FF', month='Mar', year=2024)
         db.session.add(book)
         db.session.commit()
         book_id = book.id
@@ -916,6 +1030,85 @@ def test_api_create_annotation_requires_authentication(client, app):
 
     assert response.status_code == 401
     assert response.is_json
+
+
+def test_api_books_collection_hides_hidden_books_for_reader(client, app, user):
+    ensure_guest(client)
+    login_response = login(client, email=user, password='Secret123!')
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        db.session.add_all(
+            [
+                Book(title='Visible API Book', author_name='A', author_surname='B', month='Jan', year=2025, is_hidden=False),
+                Book(title='Hidden API Book', author_name='C', author_surname='D', month='Jan', year=2025, is_hidden=True),
+            ]
+        )
+        db.session.commit()
+
+    response = client.get('/api/v1/books?search=API&page=1&per_page=10', follow_redirects=False)
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload['pagination']['total'] == 1
+    assert payload['items'][0]['title'] == 'Visible API Book'
+
+
+def test_api_book_details_returns_403_for_hidden_book_reader(client, app, user):
+    ensure_guest(client)
+    login_response = login(client, email=user, password='Secret123!')
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        book = Book(title='Hidden API Details', author_name='A', author_surname='B', month='Jan', year=2025, is_hidden=True)
+        db.session.add(book)
+        db.session.commit()
+        book_id = book.id
+
+    response = client.get(f'/api/v1/books/{book_id}', follow_redirects=False)
+    assert response.status_code == 403
+    payload = response.get_json()
+    assert payload['error']['message'] == 'This book is hidden.'
+
+
+def test_api_book_details_allows_hidden_book_for_librarian(client, app, librarian):
+    ensure_guest(client)
+    login_response = login(client, email=librarian, password='Secret123!')
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        book = Book(title='Hidden API Details Librarian', author_name='A', author_surname='B', month='Jan', year=2025, is_hidden=True)
+        db.session.add(book)
+        db.session.commit()
+        book_id = book.id
+
+    response = client.get(f'/api/v1/books/{book_id}', follow_redirects=False)
+    assert response.status_code == 200
+    assert response.get_json()['title'] == 'Hidden API Details Librarian'
+
+
+def test_api_toggle_hidden_requires_librarian(client, app, user, librarian):
+    with app.app_context():
+        book = Book(title='API Toggle Hidden', author_name='A', author_surname='B', month='Jan', year=2025)
+        db.session.add(book)
+        db.session.commit()
+        book_id = book.id
+
+    ensure_guest(client)
+    unauth = client.post(f'/api/v1/books/{book_id}/toggle-hidden', follow_redirects=False)
+    assert unauth.status_code == 401
+
+    login_response = login(client, email=user, password='Secret123!')
+    assert login_response.status_code == 302
+    reader_forbidden = client.post(f'/api/v1/books/{book_id}/toggle-hidden', follow_redirects=False)
+    assert reader_forbidden.status_code == 403
+
+    ensure_guest(client)
+    login_response = login(client, email=librarian, password='Secret123!')
+    assert login_response.status_code == 302
+    success = client.post(f'/api/v1/books/{book_id}/toggle-hidden', follow_redirects=False)
+    assert success.status_code == 200
+    assert success.is_json
+    assert success.get_json()['is_hidden'] is True
 
 
 def test_home_shows_librarian_controls_for_librarian(client, app, librarian):
@@ -1026,6 +1219,122 @@ def test_book_read_shows_annotation_delete_for_librarian(client, app, librarian)
 
     assert response.status_code == 200
     assert f'/annotations/{annotation_id}/delete'.encode() in response.data
+
+
+def test_web_librarian_can_edit_review(client, app, user, librarian):
+    ensure_guest(client)
+    login_response = login(client, email=librarian, password='Secret123!')
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        reviewer = db.session.scalar(select(Reader).filter_by(email=user))
+        book = Book(title='Web Edit Review', author_name='A', author_surname='B', month='Jan', year=2025)
+        db.session.add(book)
+        db.session.commit()
+
+        review = Review(text='Before web edit', stars=2, book_id=book.id, reviewer_id=reviewer.id)
+        db.session.add(review)
+        db.session.commit()
+        review_id = review.id
+
+    response = client.post(
+        f'/reviews/{review_id}/edit',
+        data={'text': 'After web edit', 'stars': 5},
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+
+    with app.app_context():
+        updated = db.session.scalar(select(Review).filter_by(id=review_id))
+        assert updated.text == 'After web edit'
+        assert updated.stars == 5
+
+
+def test_web_reader_cannot_edit_review(client, app, user):
+    ensure_guest(client)
+    login_response = login(client, email=user, password='Secret123!')
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        reviewer = db.session.scalar(select(Reader).filter_by(email=user))
+        book = Book(title='Web Edit Review Forbidden', author_name='A', author_surname='B', month='Jan', year=2025)
+        db.session.add(book)
+        db.session.commit()
+
+        review = Review(text='Before forbidden edit', stars=2, book_id=book.id, reviewer_id=reviewer.id)
+        db.session.add(review)
+        db.session.commit()
+        review_id = review.id
+
+    response = client.post(
+        f'/reviews/{review_id}/edit',
+        data={'text': 'After forbidden edit', 'stars': 5},
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+    assert '/home' in response.headers['Location']
+
+    with app.app_context():
+        unchanged = db.session.scalar(select(Review).filter_by(id=review_id))
+        assert unchanged.text == 'Before forbidden edit'
+        assert unchanged.stars == 2
+
+
+def test_web_librarian_can_edit_annotation(client, app, user, librarian):
+    ensure_guest(client)
+    login_response = login(client, email=librarian, password='Secret123!')
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        author = db.session.scalar(select(Reader).filter_by(email=user))
+        book = Book(title='Web Edit Annotation', author_name='A', author_surname='B', month='Jan', year=2025)
+        db.session.add(book)
+        db.session.commit()
+
+        annotation = Annotation(text='Before annotation edit', book_id=book.id, reviewer_id=author.id)
+        db.session.add(annotation)
+        db.session.commit()
+        annotation_id = annotation.id
+
+    response = client.post(
+        f'/annotations/{annotation_id}/edit',
+        data={'text': 'After annotation edit'},
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+
+    with app.app_context():
+        updated = db.session.scalar(select(Annotation).filter_by(id=annotation_id))
+        assert updated.text == 'After annotation edit'
+
+
+def test_web_reader_cannot_edit_annotation(client, app, user):
+    ensure_guest(client)
+    login_response = login(client, email=user, password='Secret123!')
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        author = db.session.scalar(select(Reader).filter_by(email=user))
+        book = Book(title='Web Edit Annotation Forbidden', author_name='A', author_surname='B', month='Jan', year=2025)
+        db.session.add(book)
+        db.session.commit()
+
+        annotation = Annotation(text='Before forbidden annotation edit', book_id=book.id, reviewer_id=author.id)
+        db.session.add(annotation)
+        db.session.commit()
+        annotation_id = annotation.id
+
+    response = client.post(
+        f'/annotations/{annotation_id}/edit',
+        data={'text': 'After forbidden annotation edit'},
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+    assert '/home' in response.headers['Location']
+
+    with app.app_context():
+        unchanged = db.session.scalar(select(Annotation).filter_by(id=annotation_id))
+        assert unchanged.text == 'Before forbidden annotation edit'
 
 
 def test_book_route_shows_hidden_access_denied_page_for_reader(client, user, app):

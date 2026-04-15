@@ -1,6 +1,22 @@
 # Dev Notes
 
 
+## 2026-04-15
+- Уніфіковано RBAC між web та API через новий модуль `app/services/access_policy.py`: спільні правила для ролі librarian, видимості hidden-книг, створення анотацій та модераційних delete-операцій.
+- `app/web_routes.py` переведено на виклики policy-функцій (`can_view_hidden_books`, `can_create_annotation`, `can_delete_review`, `can_delete_annotation`) замість локальних role-check умов, щоб прибрати розсинхрон між каналами.
+- `app/api_routes.py` синхронізовано з web-правилами: створення анотацій дозволено лише librarian; delete review/annotation також лише librarian; додано API-модерацію `POST /api/v1/books/<id>/toggle-hidden`.
+- Для API-читання книг додано узгоджену обробку hidden-доступу: reader отримує `403 This book is hidden`, librarian має доступ; у collection reader не бачить hidden-книги, librarian бачить.
+- Виправлено cache-scope для API книг: cache key тепер враховує контекст видимості (`public`/`librarian`), щоб не віддавати cached hidden-дані читачам.
+- Оновлено тести `tests/test_route_access.py` під нові RBAC-правила (reader/librarian сценарії для create/delete/toggle hidden та доступу до hidden-книг у API) і оновлено `openapi.yaml` під актуальні статус-коди/ендпоїнти.
+- (follow-up) Синхронізовано RBAC для `PATCH` в API: `PATCH /api/v1/reviews/<id>` і `PATCH /api/v1/annotations/<id>` тепер також librarian-only, щоб прибрати останній ownership-vs-moderation розрив із web-first політикою.
+- (follow-up) Розширено тести `tests/test_route_access.py` для PATCH-сценаріїв: reader отримує `403`, librarian може оновлювати й проходить валідаційні перевірки (`422` для невалідних даних).
+- (follow-up) Оновлено `openapi.yaml`: PATCH-операції review/annotation позначено як librarian-only та уточнено описи `403` відповідей.
+- (follow-up) Виконано крок 1: розширено API-тести для PATCH `403` не лише по статус-коду, а й по тексту помилки (`Only librarians can update ...`).
+- (follow-up) Виконано крок 2: прибрано неузгодженість policy-шару — `can_create_review` тепер використовується в `app/api_routes.py` (замість прямої перевірки `current_user.is_authenticated`).
+- (follow-up) Виконано крок 3: додано web-редагування для librarian — нові маршрути `POST /reviews/<id>/edit` і `POST /annotations/<id>/edit` + форми редагування в `templates/_review.html` та `templates/book_reads/_annotations_section.html`.
+- (follow-up) Додано web-тести доступу/успіху для редагування review/annotation: librarian може редагувати, reader отримує редірект на `/home`, дані не змінюються.
+
+
 ## 2026-02-27
 - Реалізовано AJAX-перемикання видимості книги без повного перезавантаження сторінки: `POST /book/<id>/toggle-hidden` тепер повертає JSON для XHR-запитів (новий `is_hidden`, текст кнопки, обробка 403 для non-librarian), а в `templates/home.html` і `templates/book.html` додано JS, який через `fetch` оновлює стан кнопки (і бейдж `Hidden` на home) локально.
 - Спрощено `POST /book/<id>/toggle-hidden`: редірект із цієї функції прибрано повністю. Endpoint тепер завжди повертає JSON (`200` для librarian, `403` для non-librarian), а кнопку на UI оновлює клієнтський `fetch` без навігації.

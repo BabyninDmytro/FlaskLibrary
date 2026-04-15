@@ -60,8 +60,8 @@ def test_api_books_collection_uses_server_side_cache_until_invalidation(client, 
     assert second.get_json()['pagination']['total'] == 1
 
 
-def test_api_mutation_invalidates_book_details_cache(client, app, user):
-    login_response = login(client)
+def test_api_mutation_invalidates_book_details_cache(client, app, user, librarian):
+    login_response = login(client, email=librarian)
     assert login_response.status_code == 302
 
     with app.app_context():
