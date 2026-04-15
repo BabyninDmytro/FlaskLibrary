@@ -2,6 +2,12 @@
 
 
 ## 2026-04-15
+- Прибрано дублююче inline-редагування review на сторінці книги: з `templates/_review.html` видалено `textarea + Stars + Save review` у кожному коментарі, залишено лише відображення тексту/рейтингу та кнопку видалення.
+- Оновлено RBAC для видалення review:
+  - `librarian` може видаляти будь-який review;
+  - звичайний `reader` може видаляти лише власний review.
+  Це реалізовано в `app/services/access_policy.py` (`can_delete_review(user, review)`), а також застосовано у web (`app/web_routes.py`) та API (`app/api_routes.py`) endpoint-ах видалення.
+- Додано/оновлено тести в `tests/test_route_access.py` для нової поведінки: web/API видалення власного review дозволено, видалення чужого review для reader заборонено (`403` в API), а inline `Save review` більше не рендериться на сторінці книги.
 - Уніфіковано RBAC між web та API через новий модуль `app/services/access_policy.py`: спільні правила для ролі librarian, видимості hidden-книг, створення анотацій та модераційних delete-операцій.
 - `app/web_routes.py` переведено на виклики policy-функцій (`can_view_hidden_books`, `can_create_annotation`, `can_delete_review`, `can_delete_annotation`) замість локальних role-check умов, щоб прибрати розсинхрон між каналами.
 - `app/api_routes.py` синхронізовано з web-правилами: створення анотацій дозволено лише librarian; delete review/annotation також лише librarian; додано API-модерацію `POST /api/v1/books/<id>/toggle-hidden`.

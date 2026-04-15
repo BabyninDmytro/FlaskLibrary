@@ -254,8 +254,8 @@ def review_delete(review_id):
         return _json_error(404, 'There is no review with this ID.')
     if not current_user.is_authenticated:
         return _json_error(401, 'Authentication required.')
-    if not can_delete_review(current_user):
-        return _json_error(403, 'Only librarians can delete reviews.')
+    if not can_delete_review(current_user, review):
+        return _json_error(403, 'You can delete only your own review unless you are a librarian.')
 
     delete_review(review)
     _invalidate_api_cache()
