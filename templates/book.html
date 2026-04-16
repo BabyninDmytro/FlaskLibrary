@@ -132,6 +132,32 @@
       flex-wrap: wrap;
     }
 
+    .book-summary {
+      margin: 12px 0 0;
+      color: #3c4658;
+      line-height: 1.45;
+    }
+
+    .book-facts,
+    .book-extra-sections {
+      margin-top: 14px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .book-fact-item,
+    .book-extra-item {
+      background: #f8fafc;
+      border-radius: 10px;
+      padding: 10px 12px;
+      color: #3c4658;
+    }
+
+    .book-fact-item strong,
+    .book-extra-item strong {
+      color: #1f2a44;
+    }
+
     .book-actions .read-now-link {
       margin-top: 0;
     }
@@ -310,6 +336,29 @@
             </a>
           </p>
           <p class="book-meta">Suggested in {{ book.month }}, {{ book.year }}</p>
+
+          {% if book_text_preview %}
+            {% if book_text_preview.summary %}
+              <p class="book-summary">{{ book_text_preview.summary }}</p>
+            {% endif %}
+
+            {% if book_text_preview.facts %}
+              <div class="book-facts">
+                {% for fact in book_text_preview.facts %}
+                  <div class="book-fact-item"><strong>{{ fact.label }}:</strong> {{ fact.value }}</div>
+                {% endfor %}
+              </div>
+            {% endif %}
+
+            {% if book_text_preview.sections %}
+              <div class="book-extra-sections">
+                {% for extra_section in book_text_preview.sections %}
+                  <div class="book-extra-item"><strong>{{ extra_section.title }}:</strong> {{ extra_section.body }}</div>
+                {% endfor %}
+              </div>
+            {% endif %}
+          {% endif %}
+
           <div class="book-actions">
             <a class="read-now-link" href="{{ url_for('main.book_read', book_id=book.id) }}">Read now</a>
             {% if is_librarian %}
