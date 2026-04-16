@@ -1354,6 +1354,143 @@ def test_web_reader_cannot_edit_annotation(client, app, user):
         assert unchanged.text == 'Before forbidden annotation edit'
 
 
+def test_web_reader_can_delete_own_review(client, app, user):
+    ensure_guest(client)
+    login_response = login(client, email=user, password='Secret123!')
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        reviewer = db.session.scalar(select(Reader).filter_by(email=user))
+        book = Book(title='Own Review Delete', author_name='A', author_surname='B', month='Jan', year=2025)
+        db.session.add(book)
+        db.session.commit()
+
+        review = Review(text='Delete me', stars=4, book_id=book.id, reviewer_id=reviewer.id)
+        db.session.add(review)
+        db.session.commit()
+        review_id = review.id
+
+    response = client.post(f'/reviews/{review_id}/delete', follow_redirects=False)
+    assert response.status_code == 302
+
+    with app.app_context():
+        deleted = db.session.scalar(select(Review).filter_by(id=review_id))
+        assert deleted is None
+
+
+def test_web_reader_cannot_delete_other_users_review(client, app, user):
+    ensure_guest(client)
+    login_response = login(client, email=user, password='Secret123!')
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        owner = Reader(
+            name='Another',
+            surname='Owner',
+            email='another.owner@example.com',
+            role='reader',
+        )
+        owner.set_password('Secret123!')
+        db.session.add(owner)
+
+        book = Book(title='Other Review Delete', author_name='A', author_surname='B', month='Jan', year=2025)
+        db.session.add(book)
+        db.session.commit()
+
+        review = Review(text='Should stay', stars=5, book_id=book.id, reviewer_id=owner.id)
+        db.session.add(review)
+        db.session.commit()
+        review_id = review.id
+
+    response = client.post(f'/reviews/{review_id}/delete', follow_redirects=False)
+    assert response.status_code == 302
+    assert '/home' in response.headers['Location']
+
+    with app.app_context():
+        remaining = db.session.scalar(select(Review).filter_by(id=review_id))
+        assert remaining is not None
+
+
+def test_book_page_has_no_inline_review_edit_form_for_librarian(client, app, user, librarian):
+    ensure_guest(client)
+    login_response = login(client, email=librarian, password='Secret123!')
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        reviewer = db.session.scalar(select(Reader).filter_by(email=user))
+        book = Book(title='No Inline Edit Block', author_name='A', author_surname='B', month='Jan', year=2025)
+        db.session.add(book)
+        db.session.commit()
+
+        review = Review(text='Visible review text', stars=3, book_id=book.id, reviewer_id=reviewer.id)
+        db.session.add(review)
+        db.session.commit()
+        book_id = book.id
+
+    response = client.get(f'/book/{book_id}', follow_redirects=True)
+    assert response.status_code == 200
+    assert b'Save review' not in response.data
+    assert b'/reviews/' in response.data
+
+
+def test_api_reader_can_delete_own_review(client, app, user):
+    ensure_guest(client)
+    login_response = login(client, email=user, password='Secret123!')
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        reviewer = db.session.scalar(select(Reader).filter_by(email=user))
+        book = Book(title='API Own Delete', author_name='A', author_surname='B', month='Jan', year=2025)
+        db.session.add(book)
+        db.session.commit()
+
+        review = Review(text='API delete me', stars=4, book_id=book.id, reviewer_id=reviewer.id)
+        db.session.add(review)
+        db.session.commit()
+        review_id = review.id
+
+    response = client.delete(f'/api/v1/reviews/{review_id}')
+    assert response.status_code == 204
+
+    with app.app_context():
+        deleted = db.session.scalar(select(Review).filter_by(id=review_id))
+        assert deleted is None
+
+
+def test_api_reader_cannot_delete_other_users_review(client, app, user):
+    ensure_guest(client)
+    login_response = login(client, email=user, password='Secret123!')
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        owner = Reader(
+            name='Api',
+            surname='Owner',
+            email='api.owner@example.com',
+            role='reader',
+        )
+        owner.set_password('Secret123!')
+        db.session.add(owner)
+
+        book = Book(title='API Other Delete', author_name='A', author_surname='B', month='Jan', year=2025)
+        db.session.add(book)
+        db.session.commit()
+
+        review = Review(text='API should stay', stars=2, book_id=book.id, reviewer_id=owner.id)
+        db.session.add(review)
+        db.session.commit()
+        review_id = review.id
+
+    response = client.delete(f'/api/v1/reviews/{review_id}')
+    assert response.status_code == 403
+    assert response.is_json
+    assert response.get_json()['error']['message'] == 'You can delete only your own review unless you are a librarian.'
+
+    with app.app_context():
+        still_exists = db.session.scalar(select(Review).filter_by(id=review_id))
+        assert still_exists is not None
+
+
 def test_book_route_shows_hidden_access_denied_page_for_reader(client, user, app):
     ensure_guest(client)
     login_response = login(client, email=user)

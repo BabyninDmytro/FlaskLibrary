@@ -259,13 +259,12 @@ def toggle_book_hidden(book_id):
 @bp.route('/reviews/<int:review_id>/delete', methods=['POST'], endpoint='delete_review')
 @login_required
 def delete_review(review_id):
-    if not can_delete_review(current_user):
-        flash('Only librarians can delete reviews.', 'error')
-        return redirect(url_for('main.home'))
-
     review = get_review(review_id)
     if review is None:
         flash('Review not found.', 'error')
+        return redirect(url_for('main.home'))
+    if not can_delete_review(current_user, review):
+        flash('You can delete only your own review unless you are a librarian.', 'error')
         return redirect(url_for('main.home'))
 
     delete_review_service(review)
