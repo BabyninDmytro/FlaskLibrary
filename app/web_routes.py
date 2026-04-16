@@ -24,6 +24,7 @@ from app.services.access_policy import (
     is_librarian,
 )
 from app.services.book_service import get_book_or_404, paginate_books
+from app.services.book_text_service import load_book_text_preview
 from app.services.reader_service import get_reader_by_email, get_reader_or_404
 from app.services.review_service import (
     create_review,
@@ -191,6 +192,7 @@ def book(book_id):
         return redirect(url_for('main.book', book_id=book.id))
 
     reviews = list_book_reviews_desc(book)
+    book_text_preview = load_book_text_preview(book.id)
 
     return render_template(
         'book.html',
@@ -198,6 +200,7 @@ def book(book_id):
         review_form=review_form,
         annotation_form=annotation_form,
         reviews=reviews,
+        book_text_preview=book_text_preview,
         is_librarian=_is_librarian(),
     )
 
