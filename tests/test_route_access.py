@@ -499,7 +499,7 @@ def test_seed_book_read_page_works(client, app, user):
     assert b'Contents' in response.data
     assert b'href="#ch1"' in response.data
     assert b'Chapter 1' in response.data
-    assert b'Prototype excerpt for Hundred Years of Solitude' in response.data
+    assert b'Chapter 1 of Hundred Years of Solitude introduces the central situation and atmosphere.' in response.data
     assert b'id="contents"' in response.data
     assert 'Текст книги'.encode('utf-8') not in response.data
 
