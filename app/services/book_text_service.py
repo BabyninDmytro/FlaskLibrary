@@ -11,18 +11,6 @@ from flask import current_app
 _TAG_RE = re.compile(r'<[^>]+>')
 _H2_SECTION_RE = re.compile(r'<h2[^>]*>(.*?)</h2>(.*?)(?=<h2[^>]*>|</body>)', re.IGNORECASE | re.DOTALL)
 _PARAGRAPH_RE = re.compile(r'<p[^>]*>(.*?)</p>', re.IGNORECASE | re.DOTALL)
-_KEY_FACT_ITEM_RE = re.compile(
-    r'<li[^>]*>\s*<strong[^>]*>(.*?):</strong>\s*(.*?)\s*</li>',
-    re.IGNORECASE | re.DOTALL,
-)
-
-
-@dataclass(slots=True)
-class FactItem:
-    label: str
-    value: str
-
-
 @dataclass(slots=True)
 class InfoSection:
     title: str
@@ -32,7 +20,6 @@ class InfoSection:
 @dataclass(slots=True)
 class BookTextPreview:
     summary: str
-    facts: list[FactItem]
     sections: list[InfoSection]
 
 
@@ -47,13 +34,12 @@ def load_book_text_preview(book_id: int) -> BookTextPreview | None:
 
     content = source_path.read_text(encoding='utf-8')
     summary = _extract_summary(content)
-    facts = _extract_key_facts(content)
     sections = _extract_info_sections(content)
 
-    if not summary and not facts and not sections:
+    if not summary and not sections:
         return None
 
-    return BookTextPreview(summary=summary, facts=facts, sections=sections)
+    return BookTextPreview(summary=summary, sections=sections)
 
 
 def _extract_summary(content: str) -> str:
@@ -70,22 +56,6 @@ def _extract_summary(content: str) -> str:
         return ''
 
     return _normalize_text(paragraph_match.group(1))
-
-
-def _extract_key_facts(content: str) -> list[FactItem]:
-    for title, section_body in _iter_h2_sections(content):
-        if title.lower() != 'key facts':
-            continue
-
-        items = []
-        for label_raw, value_raw in _KEY_FACT_ITEM_RE.findall(section_body):
-            label = _normalize_text(label_raw)
-            value = _normalize_text(value_raw)
-            if label and value:
-                items.append(FactItem(label=label, value=value))
-        return items
-
-    return []
 
 
 def _extract_info_sections(content: str) -> list[InfoSection]:

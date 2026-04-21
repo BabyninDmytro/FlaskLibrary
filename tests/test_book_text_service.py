@@ -9,7 +9,6 @@ def test_load_book_text_preview_for_existing_file(app):
 
     assert preview is not None
     assert preview.summary.startswith('Crime and Punishment is a novel by Russian author Fyodor Dostoevsky')
-    assert any(item.label == 'Author' and item.value == 'Fyodor Dostoevsky' for item in preview.facts)
     section_titles = {section.title for section in preview.sections}
     assert {'Plot & Themes', 'Literary Significance', 'Editions & Translations'} <= section_titles
 
@@ -35,6 +34,10 @@ def test_book_page_shows_preview_blocks(client, app, user):
             title='Crime and Punishment',
             author_name='Fyodor',
             author_surname='Dostoevsky',
+            original_language='Russian',
+            translation_language='English',
+            first_publication='1866',
+            genre='Psychological, philosophical novel',
             month='January',
             year=2024,
         )
@@ -47,4 +50,6 @@ def test_book_page_shows_preview_blocks(client, app, user):
     html = response.get_data(as_text=True)
     assert 'Fyodor Dostoevsky' in html
     assert 'Original Language:' in html
+    assert 'Translation Language:' in html
+    assert '1866' in html
     assert 'Plot &amp; Themes:' in html

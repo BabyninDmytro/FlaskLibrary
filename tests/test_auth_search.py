@@ -231,3 +231,35 @@ def test_home_search_hides_hidden_books_for_reader(client, user, app):
     assert response.status_code == 200
     assert b'Unique Visible Result' in response.data
     assert b'Unique Hidden Result' not in response.data
+
+
+def test_home_search_matches_extended_book_metadata(client, user, app):
+    with app.app_context():
+        db.session.add(
+            Book(
+                title='Metadata Search Book',
+                author_name='Tara',
+                author_surname='Melnyk',
+                original_language='Russian',
+                translation_language='English',
+                first_publication='1866',
+                genre='Psychological, philosophical novel',
+                month='January',
+                year=2024,
+            )
+        )
+        db.session.commit()
+
+    login(client)
+
+    response_language = home_search(client, 'Russian')
+    response_publication = home_search(client, '1866')
+    response_genre = home_search(client, 'philosophical')
+
+    assert response_language.status_code == 200
+    assert response_publication.status_code == 200
+    assert response_genre.status_code == 200
+
+    assert b'Metadata Search Book' in response_language.data
+    assert b'Metadata Search Book' in response_publication.data
+    assert b'Metadata Search Book' in response_genre.data

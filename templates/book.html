@@ -158,6 +158,16 @@
       color: #1f2a44;
     }
 
+    .book-fact-link {
+      color: #2b6cb0;
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .book-fact-link:hover {
+      text-decoration: underline;
+    }
+
     .book-actions .read-now-link {
       margin-top: 0;
     }
@@ -329,25 +339,41 @@
           loading="lazy"
         >
         <div class="book-details">
-          <p class="book-meta">
-            by
-            <a href="{{ url_for('main.home', search=book.author_name ~ ' ' ~ book.author_surname) }}">
-              {{ book.author_name }} {{ book.author_surname }}
-            </a>
-          </p>
           <p class="book-meta">Suggested in {{ book.month }}, {{ book.year }}</p>
+
+          <div class="book-facts">
+            <div class="book-fact-item">
+              <strong>Author:</strong>
+              <a class="book-fact-link" href="{{ url_for('main.home', search=book.author_name ~ ' ' ~ book.author_surname) }}">
+                {{ book.author_name }} {{ book.author_surname }}
+              </a>
+            </div>
+            <div class="book-fact-item">
+              <strong>Original Language:</strong>
+              <a class="book-fact-link" href="{{ url_for('main.home', search=book.original_language) }}">{{ book.original_language }}</a>
+            </div>
+            <div class="book-fact-item">
+              <strong>Translation Language:</strong>
+              <a class="book-fact-link" href="{{ url_for('main.home', search=book.translation_language) }}">{{ book.translation_language }}</a>
+            </div>
+            <div class="book-fact-item">
+              <strong>First Publication:</strong>
+              <a class="book-fact-link" href="{{ url_for('main.home', search=book.first_publication) }}">{{ book.first_publication }}</a>
+            </div>
+            <div class="book-fact-item">
+              <strong>Genre:</strong>
+              {% for genre_part in book.genre.replace(' and ', ',').split(',') %}
+                {% set genre_item = genre_part.strip() %}
+                {% if genre_item %}
+                  <a class="book-fact-link" href="{{ url_for('main.home', search=genre_item) }}">{{ genre_item }}</a>{% if not loop.last %}, {% endif %}
+                {% endif %}
+              {% endfor %}
+            </div>
+          </div>
 
           {% if book_text_preview %}
             {% if book_text_preview.summary %}
               <p class="book-summary">{{ book_text_preview.summary }}</p>
-            {% endif %}
-
-            {% if book_text_preview.facts %}
-              <div class="book-facts">
-                {% for fact in book_text_preview.facts %}
-                  <div class="book-fact-item"><strong>{{ fact.label }}:</strong> {{ fact.value }}</div>
-                {% endfor %}
-              </div>
             {% endif %}
 
             {% if book_text_preview.sections %}
