@@ -140,14 +140,34 @@
     {% include 'book_reads/_annotations_section.html' %}
 
     <section class="contents">
-      <h2>Contents</h2>
+      <h2 id="contents">Contents</h2>
       <ul class="contents-list">
-        <li><a href="#chapter-1">Розділ 1</a></li>
+        {% if read_content and read_content.contents %}
+          {% for item in read_content.contents %}
+            <li><a href="#{{ item.target_id }}">{{ item.title }}</a></li>
+          {% endfor %}
+        {% else %}
+          <li><a href="#chapter-1">Розділ 1</a></li>
+        {% endif %}
       </ul>
     </section>
 
     <section>
-      <p id="chapter-1" class="book-text">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
+      {% if read_content and read_content.text_sections %}
+        {% for chapter in read_content.text_sections %}
+          <article id="{{ chapter.section_id }}">
+            {% if chapter.title %}
+              <h3>{{ chapter.title }}</h3>
+            {% endif %}
+            {% for paragraph in chapter.paragraphs %}
+              <p class="book-text">{{ paragraph }}</p>
+            {% endfor %}
+            <p><a href="#contents">Back to contents</a></p>
+          </article>
+        {% endfor %}
+      {% else %}
+        <p id="chapter-1" class="book-text">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
+      {% endif %}
     </section>
 
     <a class="back-link" href="{{ url_for('main.book', book_id=book.id) }}">← Back to book page</a>

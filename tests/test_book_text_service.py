@@ -1,6 +1,6 @@
 from app.extensions import db
 from app.models import Book
-from app.services.book_text_service import load_book_text_preview
+from app.services.book_text_service import load_book_read_content, load_book_text_preview
 
 
 def test_load_book_text_preview_for_existing_file(app):
@@ -18,6 +18,20 @@ def test_load_book_text_preview_returns_none_for_missing_file(app):
         preview = load_book_text_preview(999)
 
     assert preview is None
+
+
+def test_load_book_read_content_for_existing_file(app):
+    with app.app_context():
+        content = load_book_read_content(15)
+
+    assert content is not None
+    assert len(content.contents) == 4
+    assert content.contents[0].target_id == 'part1-ch1'
+    assert content.contents[0].title == 'Part I, Chapter 1'
+    assert len(content.text_sections) == 4
+    assert content.text_sections[0].section_id == 'part1-ch1'
+    assert content.text_sections[0].title == 'Part I, Chapter 1'
+    assert content.text_sections[0].paragraphs[0].startswith('On an exceptionally hot evening')
 
 
 def test_book_page_shows_preview_blocks(client, app, user):

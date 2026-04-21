@@ -1,6 +1,5 @@
-from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, url_for
+from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required, login_user, logout_user
-from jinja2 import TemplateNotFound
 from werkzeug.exceptions import NotFound
 
 from app.extensions import db
@@ -24,7 +23,7 @@ from app.services.access_policy import (
     is_librarian,
 )
 from app.services.book_service import get_book_or_404, paginate_books
-from app.services.book_text_service import load_book_text_preview
+from app.services.book_text_service import load_book_read_content, load_book_text_preview
 from app.services.reader_service import get_reader_by_email, get_reader_or_404
 from app.services.review_service import (
     create_review,
@@ -218,23 +217,13 @@ def book_read(book_id):
             return _render_hidden_book_access_denied()
         return _render_book_not_found(book_id)
     annotations = list_book_annotations_desc(book)
-
-    book_template = f'book_reads/book_{book.id}_read.html'
-    try:
-        current_app.jinja_env.loader.get_source(current_app.jinja_env, book_template)
-        return render_template(
-            book_template,
-            book=book,
-            annotations=annotations,
-            is_librarian=_is_librarian(),
-        )
-    except TemplateNotFound:
-        pass
+    read_content = load_book_read_content(book.id)
 
     return render_template(
         'book_reads/book_default_read.html',
         book=book,
         annotations=annotations,
+        read_content=read_content,
         is_librarian=_is_librarian(),
     )
 

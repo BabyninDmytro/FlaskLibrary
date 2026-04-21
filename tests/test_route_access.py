@@ -503,6 +503,35 @@ def test_seed_book_read_page_works(client, app, user):
     assert 'Текст книги'.encode('utf-8') not in response.data
 
 
+def test_book_read_uses_static_html_content_for_book_15(client, app, user):
+    login_response = login(client)
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        book = db.session.get(Book, 15)
+        if book is None:
+            db.session.add(
+                Book(
+                    id=15,
+                    title='Crime and Punishment',
+                    author_name='Fyodor',
+                    author_surname='Dostoevsky',
+                    month='January',
+                    year=2026,
+                )
+            )
+            db.session.commit()
+
+    response = client.get('/book/15/read', follow_redirects=True)
+
+    assert response.status_code == 200
+    assert b'Part I, Chapter 1' in response.data
+    assert b'href="#part1-ch1"' in response.data
+    assert b'id="part1-ch1"' in response.data
+    assert b'On an exceptionally hot evening early in July' in response.data
+    assert b'Back to contents' in response.data
+
+
 def test_api_books_collection_returns_paginated_items(client, app):
     with app.app_context():
         db.session.add_all(
