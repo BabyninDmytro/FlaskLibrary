@@ -47,18 +47,35 @@
 
 
     .read-now-link {
-      display: inline-block;
-      margin-top: 18px;
+      display: inline-flex;
+      align-items: center;
       text-decoration: none;
       background: #2b6cb0;
       color: #ffffff;
       padding: 10px 16px;
       border-radius: 10px;
       font-weight: 600;
+      line-height: 1.2;
     }
 
     .read-now-link:hover {
       background: #245a93;
+    }
+
+    .secondary-action-link {
+      display: inline-flex;
+      align-items: center;
+      text-decoration: none;
+      background: #e7edf6;
+      color: #2b3648;
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-weight: 600;
+      line-height: 1.2;
+    }
+
+    .secondary-action-link:hover {
+      background: #d8e2f0;
     }
 
     .header-actions {
@@ -75,6 +92,8 @@
     }
 
     .admin-inline-button {
+      display: inline-flex;
+      align-items: center;
       border: none;
       border-radius: 10px;
       background: #b91c1c;
@@ -168,7 +187,8 @@
       text-decoration: underline;
     }
 
-    .book-actions .read-now-link {
+    .book-actions .read-now-link,
+    .book-actions .secondary-action-link {
       margin-top: 0;
     }
 
@@ -388,6 +408,7 @@
           <div class="book-actions">
             <a class="read-now-link" href="{{ url_for('main.book_read', book_id=book.id) }}">Read now</a>
             {% if is_librarian %}
+              <a class="secondary-action-link" href="{{ url_for('main.edit_book', book_id=book.id) }}">Edit book</a>
               <form class="admin-inline-form js-toggle-hidden-form" action="{{ url_for('main.toggle_book_hidden', book_id=book.id) }}" method="post">
                 <button class="admin-inline-button" type="submit">{% if book.is_hidden %}Unhide book{% else %}Hide book{% endif %}</button>
               </form>

@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
-from wtforms import BooleanField, PasswordField, RadioField, SelectField, StringField, SubmitField, TextAreaField
-from wtforms.validators import DataRequired, Email, EqualTo
+from wtforms import BooleanField, IntegerField, PasswordField, RadioField, SelectField, StringField, SubmitField, TextAreaField
+from wtforms.validators import DataRequired, Email, EqualTo, InputRequired, Length, NumberRange, Optional
 
 
 class RegistrationForm(FlaskForm):
@@ -38,3 +38,72 @@ class ReviewForm(FlaskForm):
 class AnnotationForm(FlaskForm):
     text = TextAreaField('Your annotation', validators=[DataRequired()])
     submit = SubmitField('Save annotation')
+
+
+class BookCreateForm(FlaskForm):
+    title = StringField('Title', validators=[DataRequired(), Length(max=80)])
+    author_name = StringField('Author name', validators=[DataRequired(), Length(max=50)])
+    author_surname = StringField('Author surname', validators=[DataRequired(), Length(max=80)])
+    original_language = StringField('Original language', validators=[DataRequired(), Length(max=80)])
+    translation_language = StringField('Translation language', validators=[DataRequired(), Length(max=80)])
+    first_publication = StringField('First publication', validators=[DataRequired(), Length(max=120)])
+    genre = TextAreaField('Genre', validators=[DataRequired(), Length(max=160)])
+    month = SelectField(
+        'Suggested month',
+        choices=[
+            ('January', 'January'),
+            ('February', 'February'),
+            ('March', 'March'),
+            ('April', 'April'),
+            ('May', 'May'),
+            ('June', 'June'),
+            ('July', 'July'),
+            ('August', 'August'),
+            ('September', 'September'),
+            ('October', 'October'),
+            ('November', 'November'),
+            ('December', 'December'),
+        ],
+        validators=[DataRequired()],
+    )
+    year = IntegerField('Suggested year', validators=[InputRequired(), NumberRange(min=1, max=9999)])
+    cover_image = StringField('Cover image path', validators=[Optional(), Length(max=255)])
+    is_hidden = BooleanField('Create as hidden')
+    submit = SubmitField('Create book')
+
+
+class BookUpdateForm(FlaskForm):
+    title = StringField('Title', validators=[DataRequired(), Length(max=80)])
+    author_name = StringField('Author name', validators=[DataRequired(), Length(max=50)])
+    author_surname = StringField('Author surname', validators=[DataRequired(), Length(max=80)])
+    original_language = StringField('Original language', validators=[DataRequired(), Length(max=80)])
+    translation_language = StringField('Translation language', validators=[DataRequired(), Length(max=80)])
+    first_publication = StringField('First publication', validators=[DataRequired(), Length(max=120)])
+    genre = TextAreaField('Genre', validators=[DataRequired(), Length(max=160)])
+    month = SelectField(
+        'Suggested month',
+        choices=[
+            ('January', 'January'),
+            ('February', 'February'),
+            ('March', 'March'),
+            ('April', 'April'),
+            ('May', 'May'),
+            ('June', 'June'),
+            ('July', 'July'),
+            ('August', 'August'),
+            ('September', 'September'),
+            ('October', 'October'),
+            ('November', 'November'),
+            ('December', 'December'),
+        ],
+        validators=[DataRequired()],
+    )
+    year = IntegerField('Suggested year', validators=[InputRequired(), NumberRange(min=1, max=9999)])
+    cover_image = StringField('Cover image path', validators=[Optional(), Length(max=255)])
+    is_hidden = BooleanField('Hidden')
+    submit = SubmitField('Save changes')
+
+
+class BookContentForm(FlaskForm):
+    html_content = TextAreaField('Book HTML', validators=[DataRequired()])
+    submit = SubmitField('Save content')

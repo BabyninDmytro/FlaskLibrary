@@ -1,6 +1,23 @@
 # Dev Notes
 
 
+## 2026-04-21
+- Додано librarian-only web-форму створення книги: `GET/POST /books/new`, форма `BookCreateForm`, окремий шаблон `templates/book_create.html`, сервісне створення через `app/services/book_service.py`.
+- Зафіксовано розділення відповідальностей для нових книг:
+  - каталогові метадані (`title`, автор, мови, жанр, рік, обкладинка, hidden-статус) зберігаються в БД;
+  - HTML у `app/static/book_text/book-<id>.html` використовується лише як контентне джерело для preview/read, без дублювання `Key Facts`.
+- Оновлено fallback для `/book/<id>/read`: якщо HTML-контент ще не додано, замість `Lorem ipsum` рендеряться явні empty-state повідомлення про відсутні contents/text, щоб нові книги можна було створювати окремим metadata-кроком.
+- Додано єдину librarian-only сторінку редагування книги: канонічний маршрут `GET/POST /book/<id>/edit` (старий `.../content/edit` залишено як alias). Сторінка має 2 блоки:
+  - зверху metadata-форму для оновлення БД-полів книги (`title`, автор, мови, жанр, рік, обкладинка, hidden-статус);
+  - знизу HTML-редактор для `book-<id>.html`, який підтягує існуючий файл або стартовий шаблон.
+- Мігрувано `app/static/book_text/book-12..31.html` у content-only формат: з файлів прибрано title/author/`Key Facts`, залишено лише `Description`, тематичні секції, `Contents` і `Text`.
+- Оновлено `app/services/book_text_service.py` під змішану сумісність:
+  - summary тепер може братись або зі старого абзацу після `h1`, або з `Description`;
+  - читання `Text` працює і для `section id=...`, і для спрощеного формату з `h3 id=...`;
+  - службові `Back to contents` абзаци більше не потрапляють у parsed text paragraphs.
+- Синхронізовано `add_data.py` з актуальними title/author значеннями з `book_text` файлів там, де вони відрізнялись (`Hundred Years of Solitude`, `García Márquez`, `Hermann Hesse`, `Guns, Germs, and Steel`, `de Saint-Exupéry`).
+
+
 ## 2026-04-15
 - Прибрано дублююче inline-редагування review на сторінці книги: з `templates/_review.html` видалено `textarea + Stars + Save review` у кожному коментарі, залишено лише відображення тексту/рейтингу та кнопку видалення.
 - Оновлено RBAC для видалення review:

@@ -431,19 +431,18 @@ def test_book_read_route_shows_annotations_in_expected_order(client, app, user):
 
     assert response.status_code == 200
     assert b'Visible only on read page' in response.data
-    assert b'Lorem ipsum' in response.data
+    assert b'Reading text has not been added for this book yet.' in response.data
     assert response.data.count(b'Back to book page') == 2
 
     assert 'Опис:'.encode('utf-8') not in response.data
     assert 'Текст книги'.encode('utf-8') not in response.data
     assert b'Contents' in response.data
-    assert 'Розділ 1'.encode('utf-8') in response.data
-    assert b'href="#chapter-1"' in response.data
+    assert b'Reading contents have not been added for this book yet.' in response.data
     assert b'Readable Book' in response.data
     assert b'Oksana R' in response.data
     assert 'Обкладинка книги'.encode('utf-8') in response.data
     assert 'Анотації'.encode('utf-8') in response.data
-    assert b'id="chapter-1"' in response.data
+    assert b'id="contents"' in response.data
 
 
 def test_book_page_shows_read_now_button_and_hides_annotation_feed(client, app, user):
@@ -498,8 +497,10 @@ def test_seed_book_read_page_works(client, app, user):
     assert 'Обкладинка книги'.encode('utf-8') in response.data
     assert 'Анотації'.encode('utf-8') in response.data
     assert b'Contents' in response.data
-    assert 'Розділ 1'.encode('utf-8') in response.data
-    assert b'id="chapter-1"' in response.data
+    assert b'href="#ch1"' in response.data
+    assert b'Chapter 1' in response.data
+    assert b'Prototype excerpt for Hundred Years of Solitude' in response.data
+    assert b'id="contents"' in response.data
     assert 'Текст книги'.encode('utf-8') not in response.data
 
 
@@ -525,10 +526,10 @@ def test_book_read_uses_static_html_content_for_book_15(client, app, user):
     response = client.get('/book/15/read', follow_redirects=True)
 
     assert response.status_code == 200
-    assert b'Part I, Chapter 1' in response.data
-    assert b'href="#part1-ch1"' in response.data
-    assert b'id="part1-ch1"' in response.data
-    assert b'On an exceptionally hot evening early in July' in response.data
+    assert b'Chapter 1' in response.data
+    assert b'href="#ch1"' in response.data
+    assert b'id="ch1"' in response.data
+    assert b'Prototype excerpt for Crime and Punishment' in response.data
     assert b'Back to contents' in response.data
 
 
@@ -724,7 +725,7 @@ def test_api_review_delete_requires_authentication(client, app, user):
 
 
 
-def test_api_review_delete_returns_403_for_reader(client, app, user):
+def test_api_review_delete_allows_reader_to_delete_own_review(client, app, user):
     ensure_guest(client)
     login_response = login(client, email=user, password='Secret123!')
     assert login_response.status_code == 302
@@ -741,10 +742,10 @@ def test_api_review_delete_returns_403_for_reader(client, app, user):
 
     response = client.delete(f'/api/v1/reviews/{review_id}', follow_redirects=False)
 
-    assert response.status_code == 403
+    assert response.status_code == 204
 
     with app.app_context():
-        assert db.session.scalar(select(Review).filter_by(id=review_id)) is not None
+        assert db.session.scalar(select(Review).filter_by(id=review_id)) is None
 
 
 def test_api_review_delete_allowed_for_librarian(client, app, user, librarian):
@@ -1162,6 +1163,287 @@ def test_home_shows_librarian_controls_for_librarian(client, app, librarian):
 
     assert response.status_code == 200
     assert f'/book/{book_id}/toggle-hidden'.encode() in response.data
+    assert b'/books/new' in response.data
+
+
+def test_create_book_page_redirects_reader_to_home(client, user):
+    ensure_guest(client)
+    login_response = login(client, email=user)
+    assert login_response.status_code == 302
+
+    response = client.get('/books/new', follow_redirects=False)
+
+    assert response.status_code == 302
+    assert '/home' in response.headers['Location']
+
+
+def test_create_book_page_is_available_for_librarian(client, librarian):
+    ensure_guest(client)
+    login_response = login(client, email=librarian)
+    assert login_response.status_code == 302
+
+    response = client.get('/books/new', follow_redirects=False)
+
+    assert response.status_code == 200
+    assert b'Add a new book' in response.data
+    assert b'Create book' in response.data
+
+
+def test_librarian_can_create_book_from_form(client, app, librarian):
+    ensure_guest(client)
+    login_response = login(client, email=librarian)
+    assert login_response.status_code == 302
+
+    response = client.post(
+        '/books/new',
+        data={
+            'title': 'New Catalog Book',
+            'author_name': 'Lesia',
+            'author_surname': 'Ukrainka',
+            'original_language': 'Ukrainian',
+            'translation_language': 'English',
+            'first_publication': '1900',
+            'genre': 'Drama, Poetry',
+            'month': 'April',
+            'year': '2026',
+            'cover_image': '',
+            'is_hidden': 'y',
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 302
+    assert '/edit' in response.headers['Location']
+
+    with app.app_context():
+        created = db.session.scalar(select(Book).filter_by(title='New Catalog Book'))
+        assert created is not None
+        assert created.author_name == 'Lesia'
+        assert created.author_surname == 'Ukrainka'
+        assert created.original_language == 'Ukrainian'
+        assert created.translation_language == 'English'
+        assert created.first_publication == '1900'
+        assert created.genre == 'Drama, Poetry'
+        assert created.month == 'April'
+        assert created.year == 2026
+        assert created.cover_image == 'book_covers/default.svg'
+        assert created.is_hidden is True
+        assert response.headers['Location'].endswith(f'/book/{created.id}/edit')
+
+
+def test_librarian_cannot_create_duplicate_book_title(client, app, librarian):
+    ensure_guest(client)
+    login_response = login(client, email=librarian)
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        db.session.add(
+            Book(
+                title='Duplicate Book',
+                author_name='Existing',
+                author_surname='Author',
+                original_language='English',
+                translation_language='English',
+                first_publication='2024',
+                genre='Fiction',
+                month='January',
+                year=2025,
+            )
+        )
+        db.session.commit()
+
+    response = client.post(
+        '/books/new',
+        data={
+            'title': 'Duplicate Book',
+            'author_name': 'New',
+            'author_surname': 'Author',
+            'original_language': 'French',
+            'translation_language': 'English',
+            'first_publication': '2025',
+            'genre': 'History',
+            'month': 'February',
+            'year': '2026',
+            'cover_image': 'book_covers/custom.svg',
+        },
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert b'A book with this title already exists.' in response.data
+
+    with app.app_context():
+        stored = db.session.execute(select(Book).filter_by(title='Duplicate Book')).scalars().all()
+        assert len(stored) == 1
+
+
+def test_book_edit_page_redirects_reader_to_home(client, app, user):
+    ensure_guest(client)
+    login_response = login(client, email=user)
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        book = Book(title='Content Editor Reader Forbidden', author_name='A', author_surname='B', month='Jan', year=2025)
+        db.session.add(book)
+        db.session.commit()
+        book_id = book.id
+
+    response = client.get(f'/book/{book_id}/edit', follow_redirects=False)
+
+    assert response.status_code == 302
+    assert '/home' in response.headers['Location']
+
+
+def test_book_edit_page_shows_metadata_and_html_blocks_for_librarian(client, app, librarian):
+    ensure_guest(client)
+    login_response = login(client, email=librarian)
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        book = Book(title='Starter Template Book', author_name='A', author_surname='B', month='Jan', year=2025)
+        db.session.add(book)
+        db.session.commit()
+        book_id = book.id
+
+    response = client.get(f'/book/{book_id}/edit', follow_redirects=False)
+
+    assert response.status_code == 200
+    assert b'Edit book: Starter Template Book' in response.data
+    assert b'Book Data' in response.data
+    assert b'Reading HTML' in response.data
+    assert b'value="Starter Template Book"' in response.data
+    assert b'Write a short summary for readers here.' in response.data
+    assert b'&lt;h2&gt;Description&lt;/h2&gt;' in response.data
+    assert b'Chapter 1' in response.data
+
+
+def test_librarian_can_update_book_metadata_from_edit_page(client, app, librarian):
+    ensure_guest(client)
+    login_response = login(client, email=librarian)
+    assert login_response.status_code == 302
+
+    with app.app_context():
+        book = Book(
+            title='Editable Metadata Book',
+            author_name='Old',
+            author_surname='Author',
+            original_language='English',
+            translation_language='English',
+            first_publication='2000',
+            genre='Essay',
+            month='May',
+            year=2020,
+            cover_image='book_covers/default.svg',
+            is_hidden=False,
+        )
+        db.session.add(book)
+        db.session.commit()
+        book_id = book.id
+
+    response = client.post(
+        f'/book/{book_id}/edit',
+        data={
+            'meta-title': 'Updated Metadata Book',
+            'meta-author_name': 'New',
+            'meta-author_surname': 'Writer',
+            'meta-original_language': 'French',
+            'meta-translation_language': 'Ukrainian',
+            'meta-first_publication': '1984',
+            'meta-genre': 'Novel, Philosophy',
+            'meta-month': 'October',
+            'meta-year': '2029',
+            'meta-cover_image': '',
+            'meta-is_hidden': 'y',
+            'meta-submit': '1',
+        },
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert b'Book details saved.' in response.data
+
+    with app.app_context():
+        updated = db.session.get(Book, book_id)
+        assert updated.title == 'Updated Metadata Book'
+        assert updated.author_name == 'New'
+        assert updated.author_surname == 'Writer'
+        assert updated.original_language == 'French'
+        assert updated.translation_language == 'Ukrainian'
+        assert updated.first_publication == '1984'
+        assert updated.genre == 'Novel, Philosophy'
+        assert updated.month == 'October'
+        assert updated.year == 2029
+        assert updated.cover_image == 'book_covers/default.svg'
+        assert updated.is_hidden is True
+
+
+def test_librarian_can_save_book_html_content_from_edit_page(client, app, librarian, tmp_path):
+    ensure_guest(client)
+    login_response = login(client, email=librarian)
+    assert login_response.status_code == 302
+
+    original_dir = app.config.get('BOOK_TEXT_DIR')
+    app.config['BOOK_TEXT_DIR'] = str(tmp_path)
+
+    try:
+        with app.app_context():
+            book = Book(title='Editable Content Book', author_name='A', author_surname='B', month='Jan', year=2025)
+            db.session.add(book)
+            db.session.commit()
+            book_id = book.id
+
+        html_content = """<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Editable Content Book</title>
+</head>
+<body>
+    <h1>Editable Content Book</h1>
+    <p>Saved from the editor.</p>
+    <h2>Plot &amp; Themes</h2>
+    <p>Editor-generated preview section.</p>
+    <h2 id="contents">Contents</h2>
+    <ul>
+        <li><a href="#part-1">Part 1</a></li>
+    </ul>
+    <h2>Text</h2>
+    <section id="part-1">
+        <h3>Part 1</h3>
+        <p>The saved text is visible on the read page.</p>
+        <p><a href="#contents">Back to contents</a></p>
+    </section>
+</body>
+</html>"""
+
+        response = client.post(
+            f'/book/{book_id}/edit',
+            data={'content-html_content': html_content, 'content-submit': '1'},
+            follow_redirects=True,
+        )
+
+        assert response.status_code == 200
+        assert b'Book HTML content saved.' in response.data
+
+        saved_file = tmp_path / f'book-{book_id}.html'
+        assert saved_file.exists()
+        assert 'Saved from the editor.' in saved_file.read_text(encoding='utf-8')
+
+        detail_response = client.get(f'/book/{book_id}', follow_redirects=False)
+        assert detail_response.status_code == 200
+        assert b'Saved from the editor.' in detail_response.data
+        assert b'Editor-generated preview section.' in detail_response.data
+        assert f'/book/{book_id}/edit'.encode() in detail_response.data
+
+        read_response = client.get(f'/book/{book_id}/read', follow_redirects=False)
+        assert read_response.status_code == 200
+        assert b'href="#part-1"' in read_response.data
+        assert b'The saved text is visible on the read page.' in read_response.data
+    finally:
+        if original_dir is None:
+            app.config.pop('BOOK_TEXT_DIR', None)
+        else:
+            app.config['BOOK_TEXT_DIR'] = original_dir
 
 
 

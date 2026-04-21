@@ -121,6 +121,16 @@
       margin: 0 0 26px;
       font-size: 20px;
     }
+
+    .empty-state {
+      margin: 0;
+      padding: 16px 18px;
+      border-radius: 12px;
+      background: #ffffff;
+      border: 1px solid #d7d7d7;
+      font-size: 18px;
+      color: #4b5563;
+    }
   </style>
 </head>
 <body>
@@ -141,15 +151,15 @@
 
     <section class="contents">
       <h2 id="contents">Contents</h2>
-      <ul class="contents-list">
-        {% if read_content and read_content.contents %}
+      {% if read_content and read_content.contents %}
+        <ul class="contents-list">
           {% for item in read_content.contents %}
             <li><a href="#{{ item.target_id }}">{{ item.title }}</a></li>
           {% endfor %}
-        {% else %}
-          <li><a href="#chapter-1">Розділ 1</a></li>
-        {% endif %}
-      </ul>
+        </ul>
+      {% else %}
+        <p class="empty-state">Reading contents have not been added for this book yet.</p>
+      {% endif %}
     </section>
 
     <section>
@@ -166,7 +176,7 @@
           </article>
         {% endfor %}
       {% else %}
-        <p id="chapter-1" class="book-text">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
+        <p class="empty-state">Reading text has not been added for this book yet.</p>
       {% endif %}
     </section>
 

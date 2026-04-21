@@ -19,6 +19,18 @@ def can_create_annotation(user):
     return is_librarian(user)
 
 
+def can_create_book(user):
+    return is_librarian(user)
+
+
+def can_edit_book_content(user):
+    return is_librarian(user)
+
+
+def can_update_book(user):
+    return is_librarian(user)
+
+
 def can_delete_review(user, review=None):
     if not getattr(user, 'is_authenticated', False):
         return False

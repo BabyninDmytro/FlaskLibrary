@@ -3,7 +3,7 @@ from flask_login import current_user, login_required, login_user, logout_user
 from werkzeug.exceptions import NotFound
 
 from app.extensions import db
-from app.forms import AnnotationForm, LoginForm, RegistrationForm, ReviewForm
+from app.forms import AnnotationForm, BookContentForm, BookCreateForm, BookUpdateForm, LoginForm, RegistrationForm, ReviewForm
 from app.models import Book, Reader
 from app.services.annotation_service import (
     create_annotation,
@@ -14,16 +14,24 @@ from app.services.annotation_service import (
 )
 from app.services.access_policy import (
     can_create_annotation,
+    can_create_book,
     can_create_review,
     can_delete_annotation,
     can_delete_review,
     can_update_annotation,
+    can_update_book,
     can_update_review,
     can_view_hidden_books,
     is_librarian,
 )
-from app.services.book_service import get_book_or_404, paginate_books
-from app.services.book_text_service import load_book_read_content, load_book_text_preview
+from app.services.book_service import BookAlreadyExistsError, create_book, get_book_or_404, paginate_books, update_book
+from app.services.book_text_service import (
+    build_book_text_template,
+    load_book_read_content,
+    load_book_text_preview,
+    load_book_text_source,
+    save_book_text_source,
+)
 from app.services.reader_service import get_reader_by_email, get_reader_or_404
 from app.services.review_service import (
     create_review,
@@ -62,6 +70,20 @@ def _render_book_not_found(book_id):
         ),
         404,
     )
+
+
+def _populate_book_update_form(form, book):
+    form.title.data = book.title
+    form.author_name.data = book.author_name
+    form.author_surname.data = book.author_surname
+    form.original_language.data = book.original_language
+    form.translation_language.data = book.translation_language
+    form.first_publication.data = book.first_publication
+    form.genre.data = book.genre
+    form.month.data = book.month
+    form.year.data = book.year
+    form.cover_image.data = book.cover_image
+    form.is_hidden.data = book.is_hidden
 
 
 @bp.app_context_processor
@@ -134,6 +156,97 @@ def home():
     )
 
     return render_template('home.html', books=books, search_query=search_query, is_librarian=_is_librarian())
+
+
+@bp.route('/books/new', methods=['GET', 'POST'])
+@login_required
+def create_book_page():
+    if not can_create_book(current_user):
+        flash('Only librarians can add books.', 'error')
+        return redirect(url_for('main.home'))
+
+    form = BookCreateForm()
+    if form.validate_on_submit():
+        try:
+            book = create_book(
+                title=form.title.data,
+                author_name=form.author_name.data,
+                author_surname=form.author_surname.data,
+                original_language=form.original_language.data,
+                translation_language=form.translation_language.data,
+                first_publication=form.first_publication.data,
+                genre=form.genre.data,
+                month=form.month.data,
+                year=form.year.data,
+                cover_image=form.cover_image.data or '',
+                is_hidden=form.is_hidden.data,
+            )
+        except BookAlreadyExistsError as error:
+            form.title.errors.append(str(error))
+        else:
+            flash('Book created. You can now fill in metadata and reading HTML on one edit page.', 'success')
+            return redirect(url_for('main.edit_book', book_id=book.id))
+
+    return render_template('book_create.html', form=form)
+
+
+@bp.route('/book/<int:book_id>/edit', methods=['GET', 'POST'], endpoint='edit_book')
+@bp.route('/book/<int:book_id>/content/edit', methods=['GET', 'POST'], endpoint='edit_book_legacy')
+@login_required
+def edit_book(book_id):
+    if not can_update_book(current_user):
+        flash('Only librarians can edit books.', 'error')
+        return redirect(url_for('main.home'))
+
+    book = get_book_or_404(book_id)
+    metadata_form = BookUpdateForm(prefix='meta')
+    content_form = BookContentForm(prefix='content')
+
+    if request.method == 'GET':
+        _populate_book_update_form(metadata_form, book)
+        content_form.html_content.data = load_book_text_source(book.id) or build_book_text_template(book)
+    elif metadata_form.submit.data:
+        if metadata_form.validate():
+            try:
+                update_book(
+                    book,
+                    title=metadata_form.title.data,
+                    author_name=metadata_form.author_name.data,
+                    author_surname=metadata_form.author_surname.data,
+                    original_language=metadata_form.original_language.data,
+                    translation_language=metadata_form.translation_language.data,
+                    first_publication=metadata_form.first_publication.data,
+                    genre=metadata_form.genre.data,
+                    month=metadata_form.month.data,
+                    year=metadata_form.year.data,
+                    cover_image=metadata_form.cover_image.data or '',
+                    is_hidden=metadata_form.is_hidden.data,
+                )
+            except BookAlreadyExistsError as error:
+                metadata_form.title.errors.append(str(error))
+            else:
+                flash('Book details saved.', 'success')
+                return redirect(url_for('main.edit_book', book_id=book.id))
+
+        content_form.html_content.data = load_book_text_source(book.id) or build_book_text_template(book)
+    elif content_form.submit.data:
+        _populate_book_update_form(metadata_form, book)
+        if content_form.validate():
+            save_book_text_source(book.id, content_form.html_content.data)
+            flash('Book HTML content saved.', 'success')
+            return redirect(url_for('main.edit_book', book_id=book.id))
+    else:
+        _populate_book_update_form(metadata_form, book)
+        content_form.html_content.data = load_book_text_source(book.id) or build_book_text_template(book)
+
+    return render_template(
+        'book_edit.html',
+        book=book,
+        metadata_form=metadata_form,
+        content_form=content_form,
+        preview_url=url_for('main.book', book_id=book.id),
+        read_url=url_for('main.book_read', book_id=book.id),
+    )
 
 
 @bp.route('/profile/<int:user_id>')
