@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edit book</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at top, #f9fbff, #e7edf6 45%, #dfe7f3 100%);
+      color: #1c2434;
+    }
+
+    .page {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 40px 24px 64px;
+    }
+
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+      margin-bottom: 24px;
+    }
+
+    .page-header h1 {
+      margin: 0;
+      font-size: 30px;
+      color: #1f2a44;
+    }
+
+    .page-header p {
+      margin: 10px 0 0;
+      color: #566075;
+      max-width: 760px;
+    }
+
+    .header-links {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .nav-link {
+      color: #2b6cb0;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .nav-link:hover {
+      text-decoration: underline;
+    }
+
+    .section-card {
+      background: #ffffff;
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: 0 18px 40px rgba(17, 24, 39, 0.12);
+    }
+
+    .section-card + .section-card {
+      margin-top: 20px;
+    }
+
+    .section-header {
+      margin-bottom: 18px;
+    }
+
+    .section-header h2 {
+      margin: 0;
+      font-size: 22px;
+      color: #1f2a44;
+    }
+
+    .section-header p {
+      margin: 8px 0 0;
+      color: #566075;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .flash-list {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 16px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .flash {
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-weight: 500;
+    }
+
+    .flash-success {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .flash-error {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px 16px;
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+    }
+
+    .field-full {
+      grid-column: 1 / -1;
+    }
+
+    label {
+      font-weight: 600;
+      color: #2b3648;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      border: 1px solid #ccd7ea;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font: inherit;
+      color: #1c2434;
+      box-sizing: border-box;
+      background: #ffffff;
+    }
+
+    textarea {
+      min-height: 96px;
+      resize: vertical;
+    }
+
+    .code-area {
+      min-height: 640px;
+      border-radius: 12px;
+      padding: 14px 16px;
+      font: 14px/1.5 Consolas, "Courier New", monospace;
+      resize: vertical;
+    }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding-top: 12px;
+    }
+
+    .checkbox-row input {
+      width: auto;
+      margin: 0;
+    }
+
+    .hint {
+      margin: 0;
+      font-size: 13px;
+      color: #566075;
+    }
+
+    .error-list {
+      margin: 0;
+      padding-left: 18px;
+      color: #b91c1c;
+      font-size: 13px;
+    }
+
+    .helper-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 2fr;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+
+    .helper-card {
+      background: #f8fafc;
+      border-radius: 14px;
+      padding: 16px;
+      color: #3c4658;
+    }
+
+    .helper-card h3 {
+      margin: 0 0 10px;
+      font-size: 18px;
+      color: #1f2a44;
+    }
+
+    .helper-card ul {
+      margin: 0;
+      padding-left: 18px;
+      display: grid;
+      gap: 6px;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .actions {
+      margin-top: 18px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 16px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      font-size: 14px;
+    }
+
+    .btn-primary {
+      background: #2b6cb0;
+      color: #ffffff;
+    }
+
+    .btn-secondary {
+      background: #e7edf6;
+      color: #2b3648;
+    }
+
+    @media (max-width: 860px) {
+      .page-header {
+        flex-direction: column;
+      }
+
+      .form-grid,
+      .helper-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="page-header">
+      <div>
+        <h1>Edit book: {{ book.title }}</h1>
+        <p>Use the top block for catalog metadata stored in the database, and the bottom block for the HTML content that powers the preview and the read page.</p>
+      </div>
+      <div class="header-links">
+        <a class="nav-link" href="{{ preview_url }}">Back to book</a>
+        <a class="nav-link" href="{{ read_url }}">Open read page</a>
+        <a class="nav-link" href="{{ url_for('main.home') }}">Home</a>
+        <a class="nav-link" href="{{ url_for('main.logout') }}">Logout</a>
+      </div>
+    </header>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <ul class="flash-list">
+          {% for category, message in messages %}
+            <li class="flash flash-{{ category }}">{{ message }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+
+    <section class="section-card">
+      <div class="section-header">
+        <h2>Book Data</h2>
+        <p>These values are rendered from the database on the book page, in search results, and in the API.</p>
+      </div>
+
+      <form method="post" action="{{ url_for('main.edit_book', book_id=book.id) }}">
+        {{ metadata_form.hidden_tag() }}
+
+        <div class="form-grid">
+          <div class="field">
+            {{ metadata_form.title.label }}
+            {{ metadata_form.title(placeholder='Crime and Punishment') }}
+            {% if metadata_form.title.errors %}
+              <ul class="error-list">
+                {% for error in metadata_form.title.errors %}
+                  <li>{{ error }}</li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+          </div>
+
+          <div class="field">
+            {{ metadata_form.first_publication.label }}
+            {{ metadata_form.first_publication(placeholder='1866') }}
+            {% if metadata_form.first_publication.errors %}
+              <ul class="error-list">
+                {% for error in metadata_form.first_publication.errors %}
+                  <li>{{ error }}</li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+          </div>
+
+          <div class="field">
+            {{ metadata_form.author_name.label }}
+            {{ metadata_form.author_name(placeholder='Fyodor') }}
+            {% if metadata_form.author_name.errors %}
+              <ul class="error-list">
+                {% for error in metadata_form.author_name.errors %}
+                  <li>{{ error }}</li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+          </div>
+
+          <div class="field">
+            {{ metadata_form.author_surname.label }}
+            {{ metadata_form.author_surname(placeholder='Dostoevsky') }}
+            {% if metadata_form.author_surname.errors %}
+              <ul class="error-list">
+                {% for error in metadata_form.author_surname.errors %}
+                  <li>{{ error }}</li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+          </div>
+
+          <div class="field">
+            {{ metadata_form.original_language.label }}
+            {{ metadata_form.original_language(placeholder='Russian') }}
+            {% if metadata_form.original_language.errors %}
+              <ul class="error-list">
+                {% for error in metadata_form.original_language.errors %}
+                  <li>{{ error }}</li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+          </div>
+
+          <div class="field">
+            {{ metadata_form.translation_language.label }}
+            {{ metadata_form.translation_language(placeholder='English') }}
+            {% if metadata_form.translation_language.errors %}
+              <ul class="error-list">
+                {% for error in metadata_form.translation_language.errors %}
+                  <li>{{ error }}</li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+          </div>
+
+          <div class="field field-full">
+            {{ metadata_form.genre.label }}
+            {{ metadata_form.genre(placeholder='Psychological fiction, Philosophical novel, Crime fiction') }}
+            {% if metadata_form.genre.errors %}
+              <ul class="error-list">
+                {% for error in metadata_form.genre.errors %}
+                  <li>{{ error }}</li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+          </div>
+
+          <div class="field">
+            {{ metadata_form.month.label }}
+            {{ metadata_form.month() }}
+            {% if metadata_form.month.errors %}
+              <ul class="error-list">
+                {% for error in metadata_form.month.errors %}
+                  <li>{{ error }}</li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+          </div>
+
+          <div class="field">
+            {{ metadata_form.year.label }}
+            {{ metadata_form.year(placeholder='2026') }}
+            {% if metadata_form.year.errors %}
+              <ul class="error-list">
+                {% for error in metadata_form.year.errors %}
+                  <li>{{ error }}</li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+          </div>
+
+          <div class="field field-full">
+            {{ metadata_form.cover_image.label }}
+            {{ metadata_form.cover_image(placeholder='book_covers/default.svg') }}
+            <p class="hint">Leave empty to use the default cover.</p>
+            {% if metadata_form.cover_image.errors %}
+              <ul class="error-list">
+                {% for error in metadata_form.cover_image.errors %}
+                  <li>{{ error }}</li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+          </div>
+
+          <div class="field field-full">
+            <label class="checkbox-row" for="{{ metadata_form.is_hidden.id }}">
+              {{ metadata_form.is_hidden() }}
+              <span>Hide this book from regular readers</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="actions">
+          {{ metadata_form.submit(class_='btn btn-primary') }}
+        </div>
+      </form>
+    </section>
+
+    <section class="section-card">
+      <div class="section-header">
+        <h2>Reading HTML</h2>
+        <p>This block controls the summary on the book page and the structured sections on the read page.</p>
+      </div>
+
+      <div class="helper-grid">
+        <div class="helper-card">
+          <h3>Recommended structure</h3>
+          <ul>
+            <li>`&lt;h1&gt;` for the title.</li>
+            <li>One summary paragraph right after the title.</li>
+            <li>`&lt;h2&gt;` sections like `Plot &amp; Themes` or `Literary Significance` for preview blocks.</li>
+            <li>A `Contents` section with links to reading anchors.</li>
+            <li>A `Text` section with `&lt;section id="..."&gt;`, `&lt;h3&gt;`, and paragraphs.</li>
+          </ul>
+        </div>
+
+        <div class="helper-card">
+          <h3>What to avoid</h3>
+          <ul>
+            <li>Do not duplicate catalog metadata like author, languages, genre, or publication year here.</li>
+            <li>Keep IDs in contents links and text sections aligned, for example `href="#part1"` and `section id="part1"`.</li>
+            <li>If you remove `Contents` or `Text`, the read page will show an empty state instead of chapter links or text.</li>
+          </ul>
+        </div>
+      </div>
+
+      <form method="post" action="{{ url_for('main.edit_book', book_id=book.id) }}">
+        {{ content_form.hidden_tag() }}
+
+        <label for="html-content">HTML content</label>
+        {{ content_form.html_content(id='html-content', class_='code-area', spellcheck='false') }}
+        {% if content_form.html_content.errors %}
+          <ul class="error-list">
+            {% for error in content_form.html_content.errors %}
+              <li>{{ error }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+
+        <div class="actions">
+          {{ content_form.submit(class_='btn btn-primary') }}
+          <a class="btn btn-secondary" href="{{ preview_url }}">Back to book</a>
+        </div>
+      </form>
+    </section>
+  </main>
+</body>
+</html>
