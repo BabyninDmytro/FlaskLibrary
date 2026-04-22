@@ -1,15 +1,22 @@
+from __future__ import annotations
+
 import logging
 import os
+from collections.abc import Mapping
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
-from flask import Flask, request
+from flask import Flask, Response, request
 from flask_login import current_user
 from sqlalchemy.exc import OperationalError
 
 from app.extensions import cache, db, login_manager
 
+if TYPE_CHECKING:
+    from app.models import Reader
 
-def _env_int(name, default):
+
+def _env_int(name: str, default: int) -> int:
     value = os.getenv(name)
     if value is None:
         return default
@@ -20,8 +27,8 @@ def _env_int(name, default):
         return default
 
 
-def _configure_logging():
-    valid_levels = {
+def _configure_logging() -> None:
+    valid_levels: dict[str, int] = {
         'CRITICAL': logging.CRITICAL,
         'ERROR': logging.ERROR,
         'WARNING': logging.WARNING,
@@ -43,7 +50,7 @@ def _configure_logging():
 _configure_logging()
 
 
-def _default_paths():
+def _default_paths() -> tuple[Path, Path, Path, Path]:
     base_dir = Path(__file__).resolve().parent.parent
     instance_dir = Path(os.getenv('FLASK_INSTANCE_PATH', base_dir / 'instance')).resolve()
     template_dir = (base_dir / 'templates').resolve()
@@ -51,7 +58,7 @@ def _default_paths():
     return base_dir, instance_dir, template_dir, db_path
 
 
-def create_app(test_config=None):
+def create_app(test_config: Mapping[str, Any] | None = None) -> Flask:
     _, instance_dir, template_dir, db_path = _default_paths()
 
     app = Flask(
@@ -90,7 +97,7 @@ def create_app(test_config=None):
     app.register_blueprint(api_bp)
 
     @app.after_request
-    def add_no_store_headers(response):
+    def add_no_store_headers(response: Response) -> Response:
         if request.blueprint == 'main' and current_user.is_authenticated:
             response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
             response.headers['Pragma'] = 'no-cache'
@@ -98,13 +105,13 @@ def create_app(test_config=None):
         return response
 
     @login_manager.user_loader
-    def _load_user(user_id):
+    def _load_user(user_id: str) -> Reader | None:
         return load_user(user_id)
 
     return app
 
 
-def load_user(user_id):
+def load_user(user_id: str) -> Reader | None:
     from app.models import Reader
 
     try:
@@ -114,4 +121,4 @@ def load_user(user_id):
         return None
 
 
-app = create_app()
+app: Flask = create_app()

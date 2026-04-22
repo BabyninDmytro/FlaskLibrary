@@ -1,151 +1,163 @@
-from sqlalchemy import String, and_, cast, or_, select
+from __future__ import annotations
 
-from app.extensions import db
+from dataclasses import dataclass
+from typing import Any
+
+from flask_sqlalchemy.pagination import Pagination
+from sqlalchemy.orm import Session
+
 from app.models import Book
+from app.repositories.book_repository import BookRepository
+from app.services.access_policy import can_create_book, can_update_book, can_view_hidden_books
+from app.services.exceptions import AuthenticationRequiredError, ConflictError, NotFoundError, PermissionDeniedError
 
 
-class BookAlreadyExistsError(ValueError):
+class BookAlreadyExistsError(ConflictError):
     pass
 
 
-def build_books_query(search_query='', include_hidden=True):
-    stmt = select(Book)
-
-    if not include_hidden:
-        stmt = stmt.where(Book.is_hidden.is_(False))
-
-    if search_query:
-        terms = [term for term in search_query.split() if term]
-        term_filters = []
-
-        for term in terms:
-            lookup = f'%{term}%'
-            term_filters.append(
-                or_(
-                    Book.title.ilike(lookup),
-                    Book.author_name.ilike(lookup),
-                    Book.author_surname.ilike(lookup),
-                    Book.original_language.ilike(lookup),
-                    Book.translation_language.ilike(lookup),
-                    Book.first_publication.ilike(lookup),
-                    Book.genre.ilike(lookup),
-                    Book.month.ilike(lookup),
-                    cast(Book.year, String).ilike(lookup),
-                )
-            )
-
-        if term_filters:
-            stmt = stmt.where(and_(*term_filters))
-
-    return stmt
+@dataclass(slots=True)
+class BookWriteData:
+    title: str
+    author_name: str
+    author_surname: str
+    original_language: str
+    translation_language: str
+    first_publication: str
+    genre: str
+    month: str
+    year: int
+    cover_image: str = ''
+    is_hidden: bool = False
 
 
-def paginate_books(search_query='', page=1, per_page=10, include_hidden=True):
-    stmt = build_books_query(search_query, include_hidden=include_hidden)
-    stmt = stmt.order_by(Book.year.desc(), Book.month.asc(), Book.title.asc())
-    return db.paginate(
-        stmt,
-        page=page,
-        per_page=per_page,
-        error_out=False,
-    )
+class BookService:
+    def __init__(self, session: Session, books: BookRepository) -> None:
+        self._session = session
+        self._books = books
 
+    def paginate_books(
+        self,
+        search_query: str = '',
+        *,
+        page: int = 1,
+        per_page: int = 10,
+        include_hidden: bool = True,
+    ) -> Pagination:
+        return self._books.paginate(
+            search_query,
+            page=page,
+            per_page=per_page,
+            include_hidden=include_hidden,
+        )
 
-def get_book_or_404(book_id, description='There is no book with this ID.', include_hidden=True):
-    stmt = select(Book).where(Book.id == book_id)
-    if not include_hidden:
-        stmt = stmt.where(Book.is_hidden.is_(False))
-    return db.first_or_404(stmt, description=description)
+    def get_book(self, book_id: int, *, include_hidden: bool = True) -> Book | None:
+        return self._books.get_by_id(book_id, include_hidden=include_hidden)
 
+    def require_book(
+        self,
+        book_id: int,
+        *,
+        include_hidden: bool = True,
+        message: str = 'There is no book with this ID.',
+    ) -> Book:
+        book = self.get_book(book_id, include_hidden=include_hidden)
+        if book is None:
+            raise NotFoundError(message)
+        return book
 
-def get_book_by_title(title):
-    normalized_title = title.strip()
-    stmt = select(Book).where(Book.title == normalized_title)
-    return db.session.execute(stmt).scalar_one_or_none()
+    def get_book_for_actor(
+        self,
+        book_id: int,
+        actor: Any,
+        *,
+        message: str = 'There is no book with this ID.',
+    ) -> Book:
+        visible_book = self.get_book(book_id, include_hidden=can_view_hidden_books(actor))
+        if visible_book is not None:
+            return visible_book
 
+        hidden_book = self.get_book(book_id, include_hidden=True)
+        if hidden_book is not None and hidden_book.is_hidden and not can_view_hidden_books(actor):
+            raise PermissionDeniedError('This book is hidden.')
 
-def create_book(
-    *,
-    title,
-    author_name,
-    author_surname,
-    original_language,
-    translation_language,
-    first_publication,
-    genre,
-    month,
-    year,
-    cover_image='',
-    is_hidden=False,
-):
-    normalized_title = title.strip()
-    if get_book_by_title(normalized_title) is not None:
-        raise BookAlreadyExistsError('A book with this title already exists.')
+        raise NotFoundError(message)
 
-    book = Book(
-        title=normalized_title,
-        author_name=author_name.strip(),
-        author_surname=author_surname.strip(),
-        original_language=original_language.strip(),
-        translation_language=translation_language.strip(),
-        first_publication=first_publication.strip(),
-        genre=genre.strip(),
-        month=month,
-        year=year,
-        cover_image=cover_image.strip() or 'book_covers/default.svg',
-        is_hidden=bool(is_hidden),
-    )
-    db.session.add(book)
-    db.session.commit()
-    return book
+    def create_book(self, actor: Any, data: BookWriteData) -> Book:
+        if not can_create_book(actor):
+            raise PermissionDeniedError('Only librarians can add books.')
 
+        normalized = self._normalize_book_data(data)
+        self._ensure_unique_title(normalized.title)
 
-def update_book(
-    book,
-    *,
-    title,
-    author_name,
-    author_surname,
-    original_language,
-    translation_language,
-    first_publication,
-    genre,
-    month,
-    year,
-    cover_image='',
-    is_hidden=False,
-):
-    normalized_title = title.strip()
-    existing_book = get_book_by_title(normalized_title)
-    if existing_book is not None and existing_book.id != book.id:
-        raise BookAlreadyExistsError('A book with this title already exists.')
+        book = Book(
+            title=normalized.title,
+            author_name=normalized.author_name,
+            author_surname=normalized.author_surname,
+            original_language=normalized.original_language,
+            translation_language=normalized.translation_language,
+            first_publication=normalized.first_publication,
+            genre=normalized.genre,
+            month=normalized.month,
+            year=normalized.year,
+            cover_image=normalized.cover_image,
+            is_hidden=normalized.is_hidden,
+        )
+        self._books.add(book)
+        self._session.commit()
+        return book
 
-    book.title = normalized_title
-    book.author_name = author_name.strip()
-    book.author_surname = author_surname.strip()
-    book.original_language = original_language.strip()
-    book.translation_language = translation_language.strip()
-    book.first_publication = first_publication.strip()
-    book.genre = genre.strip()
-    book.month = month
-    book.year = year
-    book.cover_image = cover_image.strip() or 'book_covers/default.svg'
-    book.is_hidden = bool(is_hidden)
-    db.session.commit()
-    return book
+    def update_book(self, actor: Any, book_id: int, data: BookWriteData) -> Book:
+        if not can_update_book(actor):
+            raise PermissionDeniedError('Only librarians can edit books.')
 
+        book = self.require_book(book_id)
+        normalized = self._normalize_book_data(data)
+        existing_book = self._books.get_by_title(normalized.title)
+        if existing_book is not None and existing_book.id != book.id:
+            raise BookAlreadyExistsError('A book with this title already exists.')
 
-def serialize_book(book):
-    return {
-        'id': book.id,
-        'title': book.title,
-        'author_name': book.author_name,
-        'author_surname': book.author_surname,
-        'original_language': book.original_language,
-        'translation_language': book.translation_language,
-        'first_publication': book.first_publication,
-        'genre': book.genre,
-        'month': book.month,
-        'year': book.year,
-        'cover_image': book.cover_image,
-    }
+        book.title = normalized.title
+        book.author_name = normalized.author_name
+        book.author_surname = normalized.author_surname
+        book.original_language = normalized.original_language
+        book.translation_language = normalized.translation_language
+        book.first_publication = normalized.first_publication
+        book.genre = normalized.genre
+        book.month = normalized.month
+        book.year = normalized.year
+        book.cover_image = normalized.cover_image
+        book.is_hidden = normalized.is_hidden
+        self._session.commit()
+        return book
+
+    def toggle_book_hidden(self, actor: Any, book_id: int) -> Book:
+        if not getattr(actor, 'is_authenticated', False):
+            raise AuthenticationRequiredError('Authentication required.')
+        if not can_view_hidden_books(actor):
+            raise PermissionDeniedError('Only librarians can change visibility.')
+
+        book = self.require_book(book_id)
+        book.is_hidden = not book.is_hidden
+        self._session.commit()
+        return book
+
+    def _ensure_unique_title(self, normalized_title: str) -> None:
+        if self._books.get_by_title(normalized_title) is not None:
+            raise BookAlreadyExistsError('A book with this title already exists.')
+
+    @staticmethod
+    def _normalize_book_data(data: BookWriteData) -> BookWriteData:
+        return BookWriteData(
+            title=data.title.strip(),
+            author_name=data.author_name.strip(),
+            author_surname=data.author_surname.strip(),
+            original_language=data.original_language.strip(),
+            translation_language=data.translation_language.strip(),
+            first_publication=data.first_publication.strip(),
+            genre=data.genre.strip(),
+            month=data.month,
+            year=data.year,
+            cover_image=data.cover_image.strip() or 'book_covers/default.svg',
+            is_hidden=bool(data.is_hidden),
+        )

@@ -1,17 +1,10 @@
+from __future__ import annotations
+
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 from werkzeug.exceptions import NotFound
 
-from app.extensions import db
 from app.forms import AnnotationForm, BookContentForm, BookCreateForm, BookUpdateForm, LoginForm, RegistrationForm, ReviewForm
-from app.models import Book, Reader
-from app.services.annotation_service import (
-    create_annotation,
-    delete_annotation as delete_annotation_service,
-    get_annotation,
-    list_book_annotations_desc,
-    update_annotation as update_annotation_service,
-)
 from app.services.access_policy import (
     can_create_annotation,
     can_create_book,
@@ -24,7 +17,8 @@ from app.services.access_policy import (
     can_view_hidden_books,
     is_librarian,
 )
-from app.services.book_service import BookAlreadyExistsError, create_book, get_book_or_404, paginate_books, update_book
+from app.services.annotation_service import AnnotationService
+from app.services.book_service import BookAlreadyExistsError, BookService, BookWriteData
 from app.services.book_text_service import (
     build_book_text_template,
     load_book_read_content,
@@ -32,20 +26,32 @@ from app.services.book_text_service import (
     load_book_text_source,
     save_book_text_source,
 )
-from app.services.reader_service import get_reader_by_email, get_reader_or_404
-from app.services.review_service import (
-    create_review,
-    delete_review as delete_review_service,
-    get_review,
-    get_review_or_404,
-    list_book_reviews_desc,
-    update_review as update_review_service,
-)
+from app.services.exceptions import NotFoundError, PermissionDeniedError
+from app.services.factories import build_annotation_service, build_book_service, build_reader_service, build_review_service
+from app.services.reader_service import ReaderAlreadyExistsError, ReaderRegistrationData, ReaderService
+from app.services.review_service import ReviewService
 
 
 bp = Blueprint('main', __name__)
 
-def _is_librarian():
+
+def _book_service() -> BookService:
+    return build_book_service()
+
+
+def _reader_service() -> ReaderService:
+    return build_reader_service()
+
+
+def _review_service() -> ReviewService:
+    return build_review_service()
+
+
+def _annotation_service() -> AnnotationService:
+    return build_annotation_service()
+
+
+def _is_librarian() -> bool:
     return is_librarian(current_user)
 
 
@@ -91,7 +97,6 @@ def inject_role_flags():
     return {'is_librarian': _is_librarian()}
 
 
-
 @bp.route('/', methods=['GET'])
 def init():
     if current_user.is_authenticated:
@@ -107,7 +112,7 @@ def login():
 
     form = LoginForm()
     if form.validate_on_submit():
-        user = get_reader_by_email(form.email.data)
+        user = _reader_service().authenticate(form.email.data, form.password.data)
         if user and user.check_password(form.password.data):
             login_user(user, remember=form.remember.data)
             return redirect(url_for('main.home'))
@@ -119,16 +124,20 @@ def login():
 def register():
     form = RegistrationForm()
     if form.validate_on_submit():
-        existing_user = get_reader_by_email(form.email.data)
-        if existing_user:
-            flash('Email already registered.', 'error')
+        try:
+            reader = _reader_service().register_reader(
+                ReaderRegistrationData(
+                    name=form.name.data,
+                    surname=form.surname.data,
+                    email=form.email.data,
+                    role=form.role.data,
+                    password=form.password.data,
+                )
+            )
+        except ReaderAlreadyExistsError as error:
+            flash(str(error), 'error')
         else:
-            reader = Reader(name=form.name.data, surname=form.surname.data, email=form.email.data, role=form.role.data)
-            reader.set_password(form.password.data)
-            db.session.add(reader)
-            db.session.commit()
             login_user(reader)
-            db.session.close()
             return redirect(url_for('main.home'))
     return render_template('register.html', title='Register', form=form)
 
@@ -143,12 +152,9 @@ def logout():
 @bp.route('/home')
 @login_required
 def home():
-    if not current_user.is_authenticated:
-        return redirect(url_for('main.login'))
-
     search_query = request.args.get('search', '').strip()
     page = request.args.get('page', 1, type=int)
-    books = paginate_books(
+    books = _book_service().paginate_books(
         search_query=search_query,
         page=page,
         per_page=10,
@@ -168,18 +174,21 @@ def create_book_page():
     form = BookCreateForm()
     if form.validate_on_submit():
         try:
-            book = create_book(
-                title=form.title.data,
-                author_name=form.author_name.data,
-                author_surname=form.author_surname.data,
-                original_language=form.original_language.data,
-                translation_language=form.translation_language.data,
-                first_publication=form.first_publication.data,
-                genre=form.genre.data,
-                month=form.month.data,
-                year=form.year.data,
-                cover_image=form.cover_image.data or '',
-                is_hidden=form.is_hidden.data,
+            book = _book_service().create_book(
+                current_user,
+                BookWriteData(
+                    title=form.title.data,
+                    author_name=form.author_name.data,
+                    author_surname=form.author_surname.data,
+                    original_language=form.original_language.data,
+                    translation_language=form.translation_language.data,
+                    first_publication=form.first_publication.data,
+                    genre=form.genre.data,
+                    month=form.month.data,
+                    year=form.year.data,
+                    cover_image=form.cover_image.data or '',
+                    is_hidden=form.is_hidden.data,
+                ),
             )
         except BookAlreadyExistsError as error:
             form.title.errors.append(str(error))
@@ -198,7 +207,11 @@ def edit_book(book_id):
         flash('Only librarians can edit books.', 'error')
         return redirect(url_for('main.home'))
 
-    book = get_book_or_404(book_id)
+    try:
+        book = _book_service().require_book(book_id)
+    except NotFoundError as error:
+        raise NotFound(str(error)) from error
+
     metadata_form = BookUpdateForm(prefix='meta')
     content_form = BookContentForm(prefix='content')
 
@@ -208,19 +221,22 @@ def edit_book(book_id):
     elif metadata_form.submit.data:
         if metadata_form.validate():
             try:
-                update_book(
-                    book,
-                    title=metadata_form.title.data,
-                    author_name=metadata_form.author_name.data,
-                    author_surname=metadata_form.author_surname.data,
-                    original_language=metadata_form.original_language.data,
-                    translation_language=metadata_form.translation_language.data,
-                    first_publication=metadata_form.first_publication.data,
-                    genre=metadata_form.genre.data,
-                    month=metadata_form.month.data,
-                    year=metadata_form.year.data,
-                    cover_image=metadata_form.cover_image.data or '',
-                    is_hidden=metadata_form.is_hidden.data,
+                _book_service().update_book(
+                    current_user,
+                    book.id,
+                    BookWriteData(
+                        title=metadata_form.title.data,
+                        author_name=metadata_form.author_name.data,
+                        author_surname=metadata_form.author_surname.data,
+                        original_language=metadata_form.original_language.data,
+                        translation_language=metadata_form.translation_language.data,
+                        first_publication=metadata_form.first_publication.data,
+                        genre=metadata_form.genre.data,
+                        month=metadata_form.month.data,
+                        year=metadata_form.year.data,
+                        cover_image=metadata_form.cover_image.data or '',
+                        is_hidden=metadata_form.is_hidden.data,
+                    ),
                 )
             except BookAlreadyExistsError as error:
                 metadata_form.title.errors.append(str(error))
@@ -252,14 +268,20 @@ def edit_book(book_id):
 @bp.route('/profile/<int:user_id>')
 @login_required
 def profile(user_id):
-    reader = get_reader_or_404(user_id)
+    try:
+        reader = _reader_service().require_reader(user_id)
+    except NotFoundError as error:
+        raise NotFound(str(error)) from error
     return render_template('profile.html', reader=reader)
 
 
 @bp.route('/reviews/<int:review_id>')
 @login_required
 def reviews(review_id):
-    review = get_review_or_404(review_id, description="There is no user with this ID.")
+    try:
+        review = _review_service().require_review(review_id, message="There is no user with this ID.")
+    except NotFoundError as error:
+        raise NotFound(str(error)) from error
     return render_template('_review.html', review=review, is_librarian=_is_librarian())
 
 
@@ -267,14 +289,12 @@ def reviews(review_id):
 @login_required
 def book(book_id):
     try:
-        book = get_book_or_404(book_id, include_hidden=can_view_hidden_books(current_user))
-    except NotFound:
-        if not current_user.is_authenticated:
-            return redirect(url_for('main.login'))
-        hidden_book = db.session.get(Book, book_id)
-        if hidden_book and hidden_book.is_hidden and not can_view_hidden_books(current_user):
-            return _render_hidden_book_access_denied()
+        book = _book_service().get_book_for_actor(book_id, current_user)
+    except PermissionDeniedError:
+        return _render_hidden_book_access_denied()
+    except NotFoundError:
         return _render_book_not_found(book_id)
+
     review_form = ReviewForm(prefix='review')
     annotation_form = AnnotationForm(prefix='annotation')
 
@@ -283,27 +303,27 @@ def book(book_id):
             flash('Please log in to add a review.', 'error')
             return redirect(url_for('main.login'))
 
-        create_review(
+        _review_service().create_review(
+            current_user,
+            book.id,
             text=review_form.text.data,
             stars=review_form.stars.data,
-            book_id=book.id,
-            reviewer_id=current_user.id,
         )
         return redirect(url_for('main.book', book_id=book.id))
 
     if annotation_form.submit.data and annotation_form.validate_on_submit():
-        if not current_user.is_authenticated:
-            flash('Please log in to add an annotation.', 'error')
-            return redirect(url_for('main.login'))
-
         if not can_create_annotation(current_user):
             flash('Only librarians can add annotations.', 'error')
             return redirect(url_for('main.home'))
 
-        create_annotation(text=annotation_form.text.data, book_id=book.id, reviewer_id=current_user.id)
+        _annotation_service().create_annotation(
+            current_user,
+            book.id,
+            text=annotation_form.text.data,
+        )
         return redirect(url_for('main.book', book_id=book.id))
 
-    reviews = list_book_reviews_desc(book)
+    reviews = _review_service().list_book_reviews_desc(book.id)
     book_text_preview = load_book_text_preview(book.id)
 
     return render_template(
@@ -321,15 +341,13 @@ def book(book_id):
 @login_required
 def book_read(book_id):
     try:
-        book = get_book_or_404(book_id, include_hidden=can_view_hidden_books(current_user))
-    except NotFound:
-        if not current_user.is_authenticated:
-            return redirect(url_for('main.login'))
-        hidden_book = db.session.get(Book, book_id)
-        if hidden_book and hidden_book.is_hidden and not can_view_hidden_books(current_user):
-            return _render_hidden_book_access_denied()
+        book = _book_service().get_book_for_actor(book_id, current_user)
+    except PermissionDeniedError:
+        return _render_hidden_book_access_denied()
+    except NotFoundError:
         return _render_book_not_found(book_id)
-    annotations = list_book_annotations_desc(book)
+
+    annotations = _annotation_service().list_book_annotations_desc(book.id)
     read_content = load_book_read_content(book.id)
 
     return render_template(
@@ -347,9 +365,10 @@ def toggle_book_hidden(book_id):
     if not _is_librarian():
         return jsonify({'error': 'Only librarians can change visibility.'}), 403
 
-    target_book = get_book_or_404(book_id)
-    target_book.is_hidden = not target_book.is_hidden
-    db.session.commit()
+    try:
+        target_book = _book_service().toggle_book_hidden(current_user, book_id)
+    except NotFoundError as error:
+        raise NotFound(str(error)) from error
 
     return jsonify(
         {
@@ -364,7 +383,8 @@ def toggle_book_hidden(book_id):
 @bp.route('/reviews/<int:review_id>/delete', methods=['POST'], endpoint='delete_review')
 @login_required
 def delete_review(review_id):
-    review = get_review(review_id)
+    review_service = _review_service()
+    review = review_service.get_review(review_id)
     if review is None:
         flash('Review not found.', 'error')
         return redirect(url_for('main.home'))
@@ -372,7 +392,7 @@ def delete_review(review_id):
         flash('You can delete only your own review unless you are a librarian.', 'error')
         return redirect(url_for('main.home'))
 
-    delete_review_service(review)
+    review_service.delete_review(current_user, review_id)
     return redirect(request.referrer or url_for('main.book', book_id=review.book_id))
 
 
@@ -383,13 +403,14 @@ def delete_annotation(annotation_id):
         flash('Only librarians can delete annotations.', 'error')
         return redirect(url_for('main.home'))
 
-    annotation = get_annotation(annotation_id)
+    annotation_service = _annotation_service()
+    annotation = annotation_service.get_annotation(annotation_id)
     if annotation is None:
         flash('Annotation not found.', 'error')
         return redirect(url_for('main.home'))
 
     book_id = annotation.book_id
-    delete_annotation_service(annotation)
+    annotation_service.delete_annotation(current_user, annotation_id)
     return redirect(request.referrer or url_for('main.book_read', book_id=book_id))
 
 
@@ -400,7 +421,8 @@ def edit_review(review_id):
         flash('Only librarians can edit reviews.', 'error')
         return redirect(url_for('main.home'))
 
-    review = get_review(review_id)
+    review_service = _review_service()
+    review = review_service.get_review(review_id)
     if review is None:
         flash('Review not found.', 'error')
         return redirect(url_for('main.home'))
@@ -418,7 +440,7 @@ def edit_review(review_id):
         flash('Review stars must be between 1 and 5.', 'error')
         return redirect(request.referrer or url_for('main.book', book_id=review.book_id))
 
-    update_review_service(review, {'text': text, 'stars': stars})
+    review_service.update_review(current_user, review_id, text=text, stars=stars)
     return redirect(request.referrer or url_for('main.book', book_id=review.book_id))
 
 
@@ -429,7 +451,8 @@ def edit_annotation(annotation_id):
         flash('Only librarians can edit annotations.', 'error')
         return redirect(url_for('main.home'))
 
-    annotation = get_annotation(annotation_id)
+    annotation_service = _annotation_service()
+    annotation = annotation_service.get_annotation(annotation_id)
     if annotation is None:
         flash('Annotation not found.', 'error')
         return redirect(url_for('main.home'))
@@ -442,5 +465,5 @@ def edit_annotation(annotation_id):
         flash('Annotation text must be at most 200 characters.', 'error')
         return redirect(request.referrer or url_for('main.book_read', book_id=annotation.book_id))
 
-    update_annotation_service(annotation, text)
+    annotation_service.update_annotation(current_user, annotation_id, text=text)
     return redirect(request.referrer or url_for('main.book_read', book_id=annotation.book_id))

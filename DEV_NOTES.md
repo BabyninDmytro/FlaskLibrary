@@ -1,6 +1,11 @@
 # Dev Notes
 
 
+## 2026-04-22
+- Додано явний repository-шар у `app/repositories/` для книг, читачів, review та annotation, щоб SQLAlchemy-запити більше не жили безпосередньо в route-facing сервісах.
+- `book/review/annotation/reader` сервіси перетворено на application-layer use cases: вони володіють транзакціями (`commit`) і піднімають service-level винятки замість того, щоб повертати HTTP-відповіді.
+- Збережено розділення presentation layer між `web_routes.py` (SSR) і `api_routes.py` (REST API), але обидва входи тепер використовують спільні сервіси й один data-access шар.
+
 ## 2026-04-21
 - Додано librarian-only web-форму створення книги: `GET/POST /books/new`, форма `BookCreateForm`, окремий шаблон `templates/book_create.html`, сервісне створення через `app/services/book_service.py`.
 - Зафіксовано розділення відповідальностей для нових книг:

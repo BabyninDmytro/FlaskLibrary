@@ -1,68 +1,106 @@
+from __future__ import annotations
+
 from datetime import datetime
 
 from flask_login import UserMixin
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
+from sqlalchemy.orm import DynamicMapped, Mapped, mapped_column, relationship
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.extensions import db
 
 
 class Book(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(80), index=True, unique=True)
-    author_name = db.Column(db.String(50), index=True, unique=False)
-    author_surname = db.Column(db.String(80), index=True, unique=False)
-    original_language = db.Column(db.String(80), index=True, nullable=False, default='')
-    translation_language = db.Column(db.String(80), index=True, nullable=False, default='')
-    first_publication = db.Column(db.String(120), index=True, nullable=False, default='')
-    genre = db.Column(db.String(160), index=True, nullable=False, default='')
-    month = db.Column(db.String(20), index=True, unique=False)
-    year = db.Column(db.Integer, index=True, unique=False)
-    cover_image = db.Column(db.String(255), nullable=False, default='book_covers/default.svg')
-    is_hidden = db.Column(db.Boolean, nullable=False, default=False, index=True)
-    reviews = db.relationship('Review', backref='book', lazy='dynamic', cascade="all, delete, delete-orphan")
-    annotations = db.relationship('Annotation', backref='book', lazy='dynamic', cascade="all, delete, delete-orphan")
+    __tablename__ = 'book'
 
-    def __repr__(self):
-        return "{} in: {},{}".format(self.id, self.month, self.year)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    title: Mapped[str] = mapped_column(String(80), unique=True, index=True)
+    author_name: Mapped[str] = mapped_column(String(50), index=True)
+    author_surname: Mapped[str] = mapped_column(String(80), index=True)
+    original_language: Mapped[str] = mapped_column(String(80), index=True, nullable=False, default='')
+    translation_language: Mapped[str] = mapped_column(String(80), index=True, nullable=False, default='')
+    first_publication: Mapped[str] = mapped_column(String(120), index=True, nullable=False, default='')
+    genre: Mapped[str] = mapped_column(String(160), index=True, nullable=False, default='')
+    month: Mapped[str] = mapped_column(String(20), index=True)
+    year: Mapped[int] = mapped_column(Integer, index=True)
+    cover_image: Mapped[str] = mapped_column(String(255), nullable=False, default='book_covers/default.svg')
+    is_hidden: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
+
+    reviews: DynamicMapped[Review] = relationship(
+        back_populates='book',
+        lazy='dynamic',
+        cascade='all, delete, delete-orphan',
+    )
+    annotations: DynamicMapped[Annotation] = relationship(
+        back_populates='book',
+        lazy='dynamic',
+        cascade='all, delete, delete-orphan',
+    )
+
+    def __repr__(self) -> str:
+        return f'Book(id={self.id}, month={self.month!r}, year={self.year!r})'
 
 
 class Reader(UserMixin, db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50), index=True, unique=False)
-    surname = db.Column(db.String(80), unique=False, index=True)
-    email = db.Column(db.String(120), unique=True, index=True)
-    password_hash = db.Column(db.String(128))
-    role = db.Column(db.String(20), index=True, default='reader')
-    joined_at = db.Column(db.DateTime(), default=datetime.utcnow, index=True)
-    reviews = db.relationship('Review', backref='reviewer', lazy='dynamic', cascade="all, delete, delete-orphan")
-    annotations = db.relationship('Annotation', backref='author', lazy='dynamic', cascade="all, delete, delete-orphan")
+    __tablename__ = 'reader'
 
-    def __repr__(self):
-        return "Reader ID: {}, email: {}".format(self.id, self.email)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(50), index=True)
+    surname: Mapped[str] = mapped_column(String(80), index=True)
+    email: Mapped[str] = mapped_column(String(120), unique=True, index=True)
+    password_hash: Mapped[str | None] = mapped_column(String(128))
+    role: Mapped[str] = mapped_column(String(20), index=True, default='reader')
+    joined_at: Mapped[datetime] = mapped_column(DateTime(), default=datetime.utcnow, index=True)
 
-    def set_password(self, password):
+    reviews: DynamicMapped[Review] = relationship(
+        back_populates='reviewer',
+        lazy='dynamic',
+        cascade='all, delete, delete-orphan',
+    )
+    annotations: DynamicMapped[Annotation] = relationship(
+        back_populates='author',
+        lazy='dynamic',
+        cascade='all, delete, delete-orphan',
+    )
+
+    def __repr__(self) -> str:
+        return f'Reader(id={self.id}, email={self.email!r})'
+
+    def set_password(self, password: str) -> None:
         self.password_hash = generate_password_hash(password)
 
-    def check_password(self, password):
+    def check_password(self, password: str) -> bool:
+        if not self.password_hash:
+            return False
         return check_password_hash(self.password_hash, password)
 
 
 class Review(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    stars = db.Column(db.Integer, unique=False)
-    text = db.Column(db.String(200), unique=False)
-    book_id = db.Column(db.Integer, db.ForeignKey('book.id'))
-    reviewer_id = db.Column(db.Integer, db.ForeignKey('reader.id'))
+    __tablename__ = 'review'
 
-    def __repr__(self):
-        return "Review ID: {}, {} stars {}".format(self.id, self.stars, self.book_id)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    stars: Mapped[int] = mapped_column(Integer)
+    text: Mapped[str] = mapped_column(String(200))
+    book_id: Mapped[int] = mapped_column(ForeignKey('book.id'))
+    reviewer_id: Mapped[int] = mapped_column(ForeignKey('reader.id'))
+
+    book: Mapped[Book] = relationship(back_populates='reviews')
+    reviewer: Mapped[Reader] = relationship(back_populates='reviews')
+
+    def __repr__(self) -> str:
+        return f'Review(id={self.id}, stars={self.stars}, book_id={self.book_id})'
 
 
 class Annotation(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    text = db.Column(db.String(200), unique=False)
-    reviewer_id = db.Column(db.Integer, db.ForeignKey('reader.id'))
-    book_id = db.Column(db.Integer, db.ForeignKey('book.id'))
+    __tablename__ = 'annotation'
 
-    def __repr__(self):
-        return '<Annotation {}-{}:{} >'.format(self.reviewer_id, self.book_id, self.text)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    text: Mapped[str] = mapped_column(String(200))
+    reviewer_id: Mapped[int] = mapped_column(ForeignKey('reader.id'))
+    book_id: Mapped[int] = mapped_column(ForeignKey('book.id'))
+
+    author: Mapped[Reader] = relationship(back_populates='annotations')
+    book: Mapped[Book] = relationship(back_populates='annotations')
+
+    def __repr__(self) -> str:
+        return f'Annotation(reviewer_id={self.reviewer_id}, book_id={self.book_id}, text={self.text!r})'
