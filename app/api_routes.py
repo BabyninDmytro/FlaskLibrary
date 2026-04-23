@@ -3,16 +3,18 @@ from __future__ import annotations
 import hashlib
 import json
 
-from flask import Blueprint, jsonify, redirect, request, url_for
-from flask_login import current_user
+from flask import Blueprint, jsonify, redirect, request, session as flask_session, url_for
+from flask.typing import ResponseReturnValue
 from werkzeug.exceptions import HTTPException
 
 from app.extensions import cache
 from app.serializers import serialize_annotation, serialize_book, serialize_reader, serialize_review
 from app.services.access_policy import can_view_hidden_books
-from app.services.exceptions import ServiceError
+from app.services.auth_service import AnonymousApiActor, ApiActor
+from app.services.exceptions import AuthenticationRequiredError, BadRequestError, ServiceError
 from app.services.factories import (
     build_annotation_service,
+    build_auth_service,
     build_book_service,
     build_reader_service,
     build_review_service,
@@ -38,7 +40,60 @@ def _reader_service():
     return build_reader_service()
 
 
-def _build_api_response(payload, ttl=60):
+def _auth_service():
+    return build_auth_service()
+
+
+def _json_payload() -> dict[str, object]:
+    payload = request.get_json(silent=True)
+    if payload is None:
+        return {}
+    if not isinstance(payload, dict):
+        raise BadRequestError('Request body must be a JSON object.')
+    return dict(payload)
+
+
+def _bearer_token() -> str | None:
+    authorization = request.headers.get('Authorization', '').strip()
+    if not authorization:
+        return None
+
+    scheme, _, token = authorization.partition(' ')
+    token_value = token.strip()
+    if scheme.lower() != 'bearer' or not token_value:
+        raise AuthenticationRequiredError('Authorization header must use Bearer token.')
+    return token_value
+
+
+def _session_actor() -> ApiActor | AnonymousApiActor:
+    session_user_id = flask_session.get('_user_id')
+    if not isinstance(session_user_id, str) or not session_user_id:
+        return AnonymousApiActor()
+
+    try:
+        reader_id = int(session_user_id)
+    except ValueError:
+        return AnonymousApiActor()
+
+    reader = _reader_service().get_reader(reader_id)
+    if reader is None:
+        return AnonymousApiActor()
+
+    return _auth_service().actor_from_reader(reader)
+
+
+def _api_actor(*, required: bool = False) -> ApiActor | AnonymousApiActor:
+    bearer_token = _bearer_token()
+    if bearer_token is not None:
+        return _auth_service().authenticate_access_token(bearer_token)
+
+    actor = _session_actor()
+    if required and not actor.is_authenticated:
+        raise AuthenticationRequiredError('Authentication required.')
+    return actor
+
+
+def _build_api_response(payload, ttl=60) -> ResponseReturnValue:
     payload_json = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     etag = hashlib.sha256(payload_json.encode('utf-8')).hexdigest()
 
@@ -51,7 +106,7 @@ def _build_api_response(payload, ttl=60):
     return response.make_conditional(request)
 
 
-def _cached_public_json(cache_key, payload_factory, ttl=60):
+def _cached_public_json(cache_key, payload_factory, ttl=60) -> ResponseReturnValue:
     payload = cache.get(cache_key)
     if payload is None:
         payload = payload_factory()
@@ -60,34 +115,35 @@ def _cached_public_json(cache_key, payload_factory, ttl=60):
     return _build_api_response(payload, ttl=ttl)
 
 
-def _invalidate_api_cache():
+def _invalidate_api_cache() -> None:
     cache.clear()
 
 
-def _json_error(status, message, details=None):
-    payload = {'error': {'code': status, 'message': message}}
+def _json_error(status, message, details=None) -> ResponseReturnValue:
+    payload: dict[str, object] = {'error': {'code': status, 'message': message}}
     if details is not None:
         payload['error']['details'] = details
     return jsonify(payload), status
 
 
 @bp.errorhandler(ServiceError)
-def handle_service_error(error):
+def handle_service_error(error) -> ResponseReturnValue:
     return _json_error(error.status_code, error.message, error.details)
 
 
 @bp.errorhandler(HTTPException)
-def handle_http_exception(error):
+def handle_http_exception(error) -> ResponseReturnValue:
     message = error.description if getattr(error, 'description', None) else error.name
     return _json_error(error.code or 500, message)
 
 
 @bp.route('/api/v1/books', methods=['GET'])
-def books_collection():
+def books_collection() -> ResponseReturnValue:
     search_query = request.args.get('search', '').strip()
     page = max(request.args.get('page', 1, type=int), 1)
     per_page = min(max(request.args.get('per_page', 10, type=int), 1), 50)
-    visibility_scope = 'librarian' if can_view_hidden_books(current_user) else 'public'
+    actor = _api_actor()
+    visibility_scope = 'librarian' if can_view_hidden_books(actor) else 'public'
 
     cache_key = f'api:v1:books:{visibility_scope}:search={search_query}:page={page}:per_page={per_page}'
 
@@ -96,7 +152,7 @@ def books_collection():
             search_query=search_query,
             page=page,
             per_page=per_page,
-            include_hidden=can_view_hidden_books(current_user),
+            include_hidden=can_view_hidden_books(actor),
         )
         return {
             'items': [serialize_book(book) for book in paginated.items],
@@ -115,12 +171,13 @@ def books_collection():
 
 
 @bp.route('/api/v1/books/<int:book_id>', methods=['GET'])
-def book_details(book_id):
-    visibility_scope = 'librarian' if can_view_hidden_books(current_user) else 'public'
+def book_details(book_id) -> ResponseReturnValue:
+    actor = _api_actor()
+    visibility_scope = 'librarian' if can_view_hidden_books(actor) else 'public'
     cache_key = f'api:v1:books:{book_id}:details:{visibility_scope}'
 
     def payload_factory():
-        book = _book_service().get_book_for_actor(book_id, current_user)
+        book = _book_service().get_book_for_actor(book_id, actor)
         reviews = [serialize_review(review) for review in _review_service().list_book_reviews_desc(book.id)]
         annotations = [serialize_annotation(annotation) for annotation in _annotation_service().list_book_annotations_desc(book.id)]
 
@@ -133,10 +190,11 @@ def book_details(book_id):
 
 
 @bp.route('/api/v1/books/<int:book_id>/reviews', methods=['POST'])
-def review_create(book_id):
-    payload = request.get_json(silent=True) or {}
+def review_create(book_id) -> ResponseReturnValue:
+    actor = _api_actor()
+    payload = _json_payload()
     review = _review_service().create_review(
-        current_user,
+        actor,
         book_id,
         text=payload.get('text', ''),
         stars=payload.get('stars'),
@@ -146,10 +204,11 @@ def review_create(book_id):
 
 
 @bp.route('/api/v1/books/<int:book_id>/annotations', methods=['POST'])
-def annotation_create(book_id):
-    payload = request.get_json(silent=True) or {}
+def annotation_create(book_id) -> ResponseReturnValue:
+    actor = _api_actor()
+    payload = _json_payload()
     annotation = _annotation_service().create_annotation(
-        current_user,
+        actor,
         book_id,
         text=payload.get('text', ''),
     )
@@ -158,7 +217,7 @@ def annotation_create(book_id):
 
 
 @bp.route('/api/v1/readers/<int:user_id>', methods=['GET'])
-def reader_profile(user_id):
+def reader_profile(user_id) -> ResponseReturnValue:
     cache_key = f'api:v1:readers:{user_id}'
 
     def payload_factory():
@@ -169,7 +228,7 @@ def reader_profile(user_id):
 
 
 @bp.route('/api/v1/reviews/<int:review_id>', methods=['GET'])
-def review_details(review_id):
+def review_details(review_id) -> ResponseReturnValue:
     cache_key = f'api:v1:reviews:{review_id}'
 
     def payload_factory():
@@ -180,59 +239,64 @@ def review_details(review_id):
 
 
 @bp.route('/api/v1/reviews/<int:review_id>', methods=['PATCH'])
-def review_update(review_id):
-    payload = request.get_json(silent=True) or {}
+def review_update(review_id) -> ResponseReturnValue:
+    actor = _api_actor()
+    payload = _json_payload()
     review_service = _review_service()
 
     if 'text' in payload and 'stars' in payload:
-        review = review_service.update_review(current_user, review_id, text=payload['text'], stars=payload['stars'])
+        review = review_service.update_review(actor, review_id, text=payload['text'], stars=payload['stars'])
     elif 'text' in payload:
-        review = review_service.update_review(current_user, review_id, text=payload['text'])
+        review = review_service.update_review(actor, review_id, text=payload['text'])
     elif 'stars' in payload:
-        review = review_service.update_review(current_user, review_id, stars=payload['stars'])
+        review = review_service.update_review(actor, review_id, stars=payload['stars'])
     else:
-        review = review_service.update_review(current_user, review_id)
+        review = review_service.update_review(actor, review_id)
 
     _invalidate_api_cache()
     return jsonify(serialize_review(review))
 
 
 @bp.route('/api/v1/reviews/<int:review_id>', methods=['DELETE'])
-def review_delete(review_id):
-    _review_service().delete_review(current_user, review_id)
+def review_delete(review_id) -> ResponseReturnValue:
+    actor = _api_actor()
+    _review_service().delete_review(actor, review_id)
     _invalidate_api_cache()
     return ('', 204)
 
 
 @bp.route('/api/v1/annotations/<int:annotation_id>', methods=['PATCH'])
-def annotation_update(annotation_id):
-    payload = request.get_json(silent=True) or {}
+def annotation_update(annotation_id) -> ResponseReturnValue:
+    actor = _api_actor()
+    payload = _json_payload()
     annotation_service = _annotation_service()
 
     if 'text' in payload:
-        annotation = annotation_service.update_annotation(current_user, annotation_id, text=payload['text'])
+        annotation = annotation_service.update_annotation(actor, annotation_id, text=payload['text'])
     else:
-        annotation = annotation_service.update_annotation(current_user, annotation_id)
+        annotation = annotation_service.update_annotation(actor, annotation_id)
 
     _invalidate_api_cache()
     return jsonify(serialize_annotation(annotation))
 
 
 @bp.route('/api/v1/annotations/<int:annotation_id>', methods=['DELETE'])
-def annotation_delete(annotation_id):
-    _annotation_service().delete_annotation(current_user, annotation_id)
+def annotation_delete(annotation_id) -> ResponseReturnValue:
+    actor = _api_actor()
+    _annotation_service().delete_annotation(actor, annotation_id)
     _invalidate_api_cache()
     return ('', 204)
 
 
 @bp.route('/api/v1/books/<int:book_id>/data', methods=['GET'])
-def book_details_legacy(book_id):
+def book_details_legacy(book_id) -> ResponseReturnValue:
     return redirect(url_for('api.book_details', book_id=book_id), code=301)
 
 
 @bp.route('/api/v1/books/<int:book_id>/toggle-hidden', methods=['POST'])
-def toggle_book_hidden(book_id):
-    target_book = _book_service().toggle_book_hidden(current_user, book_id)
+def toggle_book_hidden(book_id) -> ResponseReturnValue:
+    actor = _api_actor(required=True)
+    target_book = _book_service().toggle_book_hidden(actor, book_id)
     _invalidate_api_cache()
 
     return jsonify(

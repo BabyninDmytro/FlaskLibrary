@@ -1,5 +1,12 @@
 # Dev Notes
 
+## 2026-04-23
+- Added JWT-style API authentication for the REST layer while keeping `Flask-Login` session auth for SSR routes.
+- Introduced `RefreshTokenSession` persistence with refresh rotation and revocation so API sessions can be invalidated independently from browser sessions.
+- Implemented the token layer in-app with HS256 signing because the project does not currently ship with a dedicated JWT dependency.
+- Added `/api/v1/auth/login`, `/api/v1/auth/refresh`, `/api/v1/auth/logout`, and `/api/v1/auth/me`, and updated REST routes to accept `Authorization: Bearer ...`.
+- Kept temporary session fallback in `app/api_routes.py` for existing callers and tests during the migration window to bearer auth.
+
 
 ## 2026-04-22
 - Додано явний repository-шар у `app/repositories/` для книг, читачів, review та annotation, щоб SQLAlchemy-запити більше не жили безпосередньо в route-facing сервісах.

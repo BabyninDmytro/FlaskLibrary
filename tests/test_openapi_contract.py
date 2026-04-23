@@ -9,6 +9,10 @@ def test_openapi_documents_core_v1_paths():
     spec_text = _read_openapi()
 
     expected_paths = (
+        '/api/v1/auth/login:',
+        '/api/v1/auth/refresh:',
+        '/api/v1/auth/logout:',
+        '/api/v1/auth/me:',
         '/api/v1/books:',
         '/api/v1/books/{book_id}:',
         '/api/v1/books/{book_id}/reviews:',
@@ -33,3 +37,11 @@ def test_openapi_documents_expected_toggle_hidden_responses():
     assert "'401':" in toggle_hidden_block
     assert "'403':" in toggle_hidden_block
     assert "'404':" in toggle_hidden_block
+
+
+def test_openapi_documents_bearer_auth_scheme():
+    spec_text = _read_openapi()
+
+    assert 'bearerAuth:' in spec_text
+    assert 'scheme: bearer' in spec_text
+    assert 'bearerFormat: JWT' in spec_text

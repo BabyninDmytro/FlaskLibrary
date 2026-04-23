@@ -70,6 +70,9 @@ def create_app(test_config: Mapping[str, Any] | None = None) -> Flask:
 
     app.config.from_mapping(
         SECRET_KEY=os.getenv('SECRET_KEY', 'change-me-in-production'),
+        JWT_SECRET_KEY=os.getenv('JWT_SECRET_KEY', os.getenv('SECRET_KEY', 'change-me-in-production')),
+        JWT_ACCESS_TOKEN_EXPIRES_MINUTES=_env_int('JWT_ACCESS_TOKEN_EXPIRES_MINUTES', 15),
+        JWT_REFRESH_TOKEN_EXPIRES_DAYS=_env_int('JWT_REFRESH_TOKEN_EXPIRES_DAYS', 30),
         SQLALCHEMY_DATABASE_URI=f"sqlite:///{db_path}",
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         CACHE_TYPE=os.getenv('CACHE_TYPE', 'SimpleCache'),
@@ -91,9 +94,11 @@ def create_app(test_config: Mapping[str, Any] | None = None) -> Flask:
 
     from app import models  # noqa: E402,F401
     from app.web_routes import bp as web_bp  # noqa: E402
+    from app.api_auth_routes import bp as api_auth_bp  # noqa: E402
     from app.api_routes import bp as api_bp  # noqa: E402
 
     app.register_blueprint(web_bp)
+    app.register_blueprint(api_auth_bp)
     app.register_blueprint(api_bp)
 
     @app.after_request

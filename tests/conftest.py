@@ -12,6 +12,9 @@ def app(tmp_path_factory):
     flask_app = create_app(
         {
             'SECRET_KEY': 'test-secret-key',
+            'JWT_SECRET_KEY': 'test-jwt-secret-key',
+            'JWT_ACCESS_TOKEN_EXPIRES_MINUTES': 15,
+            'JWT_REFRESH_TOKEN_EXPIRES_DAYS': 30,
             'TESTING': False,
             'LOGIN_DISABLED': False,
             'WTF_CSRF_ENABLED': False,

@@ -4,7 +4,62 @@ info:
   version: 1.0.0
 servers:
   - url: /
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
 paths:
+  /api/v1/auth/login:
+    post:
+      summary: Exchange email and password for API tokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        '200': { description: Tokens issued }
+        '401': { description: Invalid credentials }
+        '422': { description: Validation failed }
+  /api/v1/auth/refresh:
+    post:
+      summary: Rotate refresh token and issue a new token pair
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token: { type: string }
+      responses:
+        '200': { description: Tokens rotated }
+        '401': { description: Invalid or revoked refresh token }
+        '422': { description: Validation failed }
+  /api/v1/auth/logout:
+    post:
+      summary: Revoke the current API session
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Session revoked }
+        '401': { description: Unauthorized }
+  /api/v1/auth/me:
+    get:
+      summary: Get the current API user
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: Current reader profile }
+        '401': { description: Unauthorized }
   /api/v1/books:
     get:
       summary: List books
@@ -36,6 +91,8 @@ paths:
   /api/v1/books/{book_id}/reviews:
     post:
       summary: Create review for a book
+      security:
+        - bearerAuth: []
       parameters:
         - in: path
           name: book_id
@@ -58,6 +115,8 @@ paths:
   /api/v1/books/{book_id}/annotations:
     post:
       summary: Create annotation for a book
+      security:
+        - bearerAuth: []
       parameters:
         - in: path
           name: book_id
@@ -80,6 +139,8 @@ paths:
   /api/v1/books/{book_id}/toggle-hidden:
     post:
       summary: Toggle hidden status for a book (librarian only)
+      security:
+        - bearerAuth: []
       parameters:
         - in: path
           name: book_id
@@ -103,6 +164,8 @@ paths:
         '404': { description: Not found }
     patch:
       summary: Update review (librarian only)
+      security:
+        - bearerAuth: []
       parameters:
         - in: path
           name: review_id
@@ -117,6 +180,8 @@ paths:
         '422': { description: Validation failed }
     delete:
       summary: Delete review (librarian only)
+      security:
+        - bearerAuth: []
       parameters:
         - in: path
           name: review_id
@@ -130,6 +195,8 @@ paths:
   /api/v1/annotations/{annotation_id}:
     patch:
       summary: Update annotation (librarian only)
+      security:
+        - bearerAuth: []
       parameters:
         - in: path
           name: annotation_id
@@ -144,6 +211,8 @@ paths:
         '422': { description: Validation failed }
     delete:
       summary: Delete annotation (librarian only)
+      security:
+        - bearerAuth: []
       parameters:
         - in: path
           name: annotation_id

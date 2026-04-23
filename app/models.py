@@ -62,6 +62,11 @@ class Reader(UserMixin, db.Model):
         lazy='dynamic',
         cascade='all, delete, delete-orphan',
     )
+    refresh_token_sessions: DynamicMapped[RefreshTokenSession] = relationship(
+        back_populates='user',
+        lazy='dynamic',
+        cascade='all, delete, delete-orphan',
+    )
 
     def __repr__(self) -> str:
         return f'Reader(id={self.id}, email={self.email!r})'
@@ -104,3 +109,24 @@ class Annotation(db.Model):
 
     def __repr__(self) -> str:
         return f'Annotation(reviewer_id={self.reviewer_id}, book_id={self.book_id}, text={self.text!r})'
+
+
+class RefreshTokenSession(db.Model):
+    __tablename__ = 'refresh_token_session'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey('reader.id'), index=True)
+    session_id: Mapped[str] = mapped_column(String(32), unique=True, index=True)
+    refresh_jti: Mapped[str] = mapped_column(String(32), unique=True, index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(), default=datetime.utcnow, index=True)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime())
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(), index=True)
+    user_agent: Mapped[str | None] = mapped_column(String(255))
+    ip_address: Mapped[str | None] = mapped_column(String(64))
+
+    user: Mapped[Reader] = relationship(back_populates='refresh_token_sessions')
+
+    def __repr__(self) -> str:
+        return f'RefreshTokenSession(id={self.id}, user_id={self.user_id}, session_id={self.session_id!r})'
