@@ -447,6 +447,7 @@ def test_book_read_route_shows_annotations_in_expected_order(client, app, user):
     assert b'Visible only on read page' in response.data
     assert b'Reading text has not been added for this book yet.' in response.data
     assert response.data.count(b'Back to book page') == 2
+    assert response.data.count(b'Back to home') == 2
 
     assert 'Опис:'.encode('utf-8') not in response.data
     assert 'Текст книги'.encode('utf-8') not in response.data
@@ -480,11 +481,18 @@ def test_book_page_shows_read_now_button_and_hides_annotation_feed(client, app, 
         db.session.commit()
         book_id = book.id
 
-    response = client.get(f'/book/{book_id}', follow_redirects=True)
+    response = client.get(
+        f'/book/{book_id}',
+        headers={'Referer': '/home'},
+        follow_redirects=True,
+    )
 
     assert response.status_code == 200
     assert f'/book/{book_id}/read'.encode() in response.data
     assert b'Hidden on details page' not in response.data
+    assert b'Book details' in response.data
+    assert b'Back to home' in response.data
+    assert b'href="/home"' in response.data
 
 
 
@@ -1232,6 +1240,7 @@ def test_home_shows_librarian_controls_for_librarian(client, app, librarian):
 
     assert response.status_code == 200
     assert f'/book/{book_id}/toggle-hidden'.encode() in response.data
+    assert f'data-href="/book/{book_id}"'.encode() in response.data
     assert b'/books/new' in response.data
 
 

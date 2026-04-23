@@ -24,15 +24,31 @@
     }
 
     .page-header {
-      position: relative;
       margin-bottom: 24px;
-      padding-right: 120px;
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+    }
+
+    .page-heading {
+      display: grid;
+      gap: 6px;
     }
 
     .page-header h1 {
       margin: 0;
       font-size: 30px;
       color: #1f2a44;
+    }
+
+    .page-kicker {
+      margin: 0;
+      color: #5b677d;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
     }
 
     .nav-link {
@@ -50,41 +66,44 @@
       display: inline-flex;
       align-items: center;
       text-decoration: none;
-      background: #2b6cb0;
+      background: linear-gradient(135deg, #1d4ed8, #2563eb);
       color: #ffffff;
-      padding: 10px 16px;
-      border-radius: 10px;
+      padding: 12px 18px;
+      border-radius: 12px;
       font-weight: 600;
       line-height: 1.2;
+      box-shadow: 0 12px 28px rgba(37, 99, 235, 0.28);
+      transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
     }
 
     .read-now-link:hover {
-      background: #245a93;
+      transform: translateY(-1px);
+      box-shadow: 0 16px 32px rgba(37, 99, 235, 0.34);
+      filter: brightness(1.02);
     }
 
     .secondary-action-link {
       display: inline-flex;
       align-items: center;
       text-decoration: none;
-      background: #e7edf6;
+      background: #f8fafc;
+      border: 1px solid #d7e0ee;
       color: #2b3648;
-      padding: 10px 16px;
+      padding: 10px 14px;
       border-radius: 10px;
       font-weight: 600;
       line-height: 1.2;
     }
 
     .secondary-action-link:hover {
-      background: #d8e2f0;
+      background: #eef3f9;
     }
 
     .header-actions {
-      position: absolute;
-      top: 0;
-      right: 0;
       display: flex;
-      gap: 16px;
+      gap: 14px;
       align-items: center;
+      flex-wrap: wrap;
     }
 
     .admin-inline-form {
@@ -94,11 +113,11 @@
     .admin-inline-button {
       display: inline-flex;
       align-items: center;
-      border: none;
+      border: 1px solid #fecaca;
       border-radius: 10px;
-      background: #b91c1c;
-      color: #fff;
-      padding: 10px 16px;
+      background: #fff5f5;
+      color: #b91c1c;
+      padding: 10px 14px;
       font-weight: 600;
       cursor: pointer;
       font: inherit;
@@ -106,7 +125,7 @@
     }
 
     .admin-inline-button:hover {
-      background: #991b1b;
+      background: #fee2e2;
     }
 
     .book-card {
@@ -145,10 +164,19 @@
 
     .book-actions {
       display: flex;
-      gap: 12px;
+      gap: 16px;
       align-items: center;
       margin-top: 18px;
       flex-wrap: wrap;
+    }
+
+    .book-secondary-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      padding-left: 14px;
+      border-left: 1px solid #d7e0ee;
     }
 
     .book-summary {
@@ -334,8 +362,18 @@
     }
 
     @media (max-width: 640px) {
+      .page-header {
+        flex-direction: column;
+      }
+
       .book-overview {
         flex-direction: column;
+      }
+
+      .book-secondary-actions {
+        width: 100%;
+        padding-left: 0;
+        border-left: none;
       }
     }
   </style>
@@ -343,11 +381,14 @@
 <body>
   <main class="page">
     <header class="page-header">
-      <h1>{{ book.title }}</h1>
-      <div class="header-actions">
+      <div class="page-heading">
+        <p class="page-kicker">Book details</p>
+        <h1>{{ book.title }}</h1>
+      </div>
+      <nav class="header-actions" aria-label="Page actions">
         <a class="nav-link" href="{{ url_for('main.home') }}">Back to home</a>
         <a class="nav-link" href="{{ url_for('main.logout') }}">Logout</a>
-      </div>
+      </nav>
     </header>
 
     <section class="book-card">
@@ -408,10 +449,12 @@
           <div class="book-actions">
             <a class="read-now-link" href="{{ url_for('main.book_read', book_id=book.id) }}">Read now</a>
             {% if is_librarian %}
-              <a class="secondary-action-link" href="{{ url_for('main.edit_book', book_id=book.id) }}">Edit book</a>
-              <form class="admin-inline-form js-toggle-hidden-form" action="{{ url_for('main.toggle_book_hidden', book_id=book.id) }}" method="post">
-                <button class="admin-inline-button" type="submit">{% if book.is_hidden %}Unhide book{% else %}Hide book{% endif %}</button>
-              </form>
+              <div class="book-secondary-actions" aria-label="Admin actions">
+                <a class="secondary-action-link" href="{{ url_for('main.edit_book', book_id=book.id) }}">Edit book</a>
+                <form class="admin-inline-form js-toggle-hidden-form" action="{{ url_for('main.toggle_book_hidden', book_id=book.id) }}" method="post">
+                  <button class="admin-inline-button" type="submit">{% if book.is_hidden %}Unhide book{% else %}Hide book{% endif %}</button>
+                </form>
+              </div>
             {% endif %}
           </div>
         </div>

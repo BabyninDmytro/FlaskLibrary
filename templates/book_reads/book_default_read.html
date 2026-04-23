@@ -27,6 +27,17 @@
       font-size: 18px;
     }
 
+    .back-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin: 4px 0 18px;
+    }
+
+    .back-links .back-link {
+      margin: 0;
+    }
+
     .back-link:hover {
       text-decoration: underline;
     }
@@ -135,7 +146,10 @@
 </head>
 <body>
   <main>
-    <a class="back-link" href="{{ url_for('main.book', book_id=book.id) }}">← Back to book page</a>
+    <nav class="back-links" aria-label="Page navigation">
+      <a class="back-link" href="{{ url_for('main.book', book_id=book.id) }}">&larr; Back to book page</a>
+      <a class="back-link" href="{{ url_for('main.home') }}">Back to home</a>
+    </nav>
 
     <h1>{{ book.title }}</h1>
     <p class="meta">{{ book.author_name }} {{ book.author_surname }} · {{ book.month }} {{ book.year }}</p>
@@ -180,7 +194,10 @@
       {% endif %}
     </section>
 
-    <a class="back-link" href="{{ url_for('main.book', book_id=book.id) }}">← Back to book page</a>
+    <nav class="back-links" aria-label="Page navigation">
+      <a class="back-link" href="{{ url_for('main.book', book_id=book.id) }}">&larr; Back to book page</a>
+      <a class="back-link" href="{{ url_for('main.home') }}">Back to home</a>
+    </nav>
   </main>
 </body>
 </html>

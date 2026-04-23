@@ -168,6 +168,21 @@
       border-radius: 18px;
       padding: 18px 20px;
       box-shadow: 0 18px 40px rgba(17, 24, 39, 0.12);
+      border: 1px solid transparent;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+
+    .book-card-link {
+      cursor: pointer;
+    }
+
+    .book-card-link:hover,
+    .book-card-link:focus-visible,
+    .book-card-link:focus-within {
+      transform: translateY(-2px);
+      box-shadow: 0 22px 44px rgba(17, 24, 39, 0.16);
+      border-color: #cdd9ec;
+      outline: none;
     }
 
     .book-card a {
@@ -257,7 +272,12 @@
     <h2 class="section-title">All the suggested books we have so far</h2>
     <ul class="book-list">
       {% for book in books.items %}
-        <li class="book-card">
+        <li
+          class="book-card book-card-link js-book-card-link"
+          data-href="{{ url_for('main.book', book_id=book.id) }}"
+          tabindex="0"
+          aria-label="Open book {{ book.title }}"
+        >
           <div class="book-title-row">
             <a href="{{ url_for('main.book', book_id=book.id) }}">{{ book.title }}</a>
             {% if book.is_hidden %}<span class="hidden-badge">Hidden</span>{% endif %}
@@ -308,50 +328,76 @@
       </nav>
     {% endif %}
   </main>
-  {% if is_librarian %}
-    <script>
-      document.querySelectorAll('.js-toggle-hidden-form').forEach((form) => {
-        form.addEventListener('submit', async (event) => {
-          event.preventDefault();
+  <script>
+    document.querySelectorAll('.js-book-card-link').forEach((card) => {
+      const navigateToCard = () => {
+        const href = card.dataset.href;
+        if (href) {
+          window.location.href = href;
+        }
+      };
 
-          const submitButton = form.querySelector('button[type="submit"]');
-          const previousText = submitButton.textContent;
-          submitButton.disabled = true;
-          submitButton.textContent = 'Saving...';
+      card.addEventListener('click', (event) => {
+        if (event.target.closest('a, button, input, select, textarea, label, form')) {
+          return;
+        }
 
-          try {
-            const response = await fetch(form.action, {
-              method: 'POST',
-              headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-              },
-            });
-
-            if (!response.ok) {
-              throw new Error('Failed to update book visibility.');
-            }
-
-            const payload = await response.json();
-            submitButton.textContent = payload.button_label_short;
-
-            const titleRow = form.closest('.book-title-row');
-            const hiddenBadge = titleRow.querySelector('.hidden-badge');
-            if (payload.is_hidden && !hiddenBadge) {
-              const badge = document.createElement('span');
-              badge.className = 'hidden-badge';
-              badge.textContent = 'Hidden';
-              titleRow.insertBefore(badge, form);
-            } else if (!payload.is_hidden && hiddenBadge) {
-              hiddenBadge.remove();
-            }
-          } catch (error) {
-            submitButton.textContent = previousText;
-          } finally {
-            submitButton.disabled = false;
-          }
-        });
+        navigateToCard();
       });
-    </script>
-  {% endif %}
+
+      card.addEventListener('keydown', (event) => {
+        if (event.target !== card) {
+          return;
+        }
+
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          navigateToCard();
+        }
+      });
+    });
+
+    document.querySelectorAll('.js-toggle-hidden-form').forEach((form) => {
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+
+        const submitButton = form.querySelector('button[type="submit"]');
+        const previousText = submitButton.textContent;
+        submitButton.disabled = true;
+        submitButton.textContent = 'Saving...';
+
+        try {
+          const response = await fetch(form.action, {
+            method: 'POST',
+            headers: {
+              'X-Requested-With': 'XMLHttpRequest',
+            },
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to update book visibility.');
+          }
+
+          const payload = await response.json();
+          submitButton.textContent = payload.button_label_short;
+
+          const titleRow = form.closest('.book-title-row');
+          const hiddenBadge = titleRow.querySelector('.hidden-badge');
+          if (payload.is_hidden && !hiddenBadge) {
+            const badge = document.createElement('span');
+            badge.className = 'hidden-badge';
+            badge.textContent = 'Hidden';
+            titleRow.insertBefore(badge, form);
+          } else if (!payload.is_hidden && hiddenBadge) {
+            hiddenBadge.remove();
+          }
+        } catch (error) {
+          submitButton.textContent = previousText;
+        } finally {
+          submitButton.disabled = false;
+        }
+      });
+    });
+  </script>
 </body>
 </html>
