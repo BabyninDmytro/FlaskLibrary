@@ -1,11 +1,13 @@
 import os
 
 from app import create_app
+from app.db_schema import ensure_database_schema
 from app.extensions import db
 from app.models import Annotation, Book, Reader, Review
 
 
 app = create_app()
+DEFAULT_PASSWORD = 'Secret123!'
 
 
 def safe_commit():
@@ -18,13 +20,15 @@ def safe_commit():
 with app.app_context():
     db_path = os.path.join(app.instance_path, 'myDB.db')
     os.makedirs(app.instance_path, exist_ok=True)
+    db.session.remove()
+    db.engine.dispose()
     if os.path.exists(db_path):
         os.remove(db_path)
 
-    db.create_all()
+    ensure_database_schema()
 
     readers_data = [
-        {'id': 123, 'name': 'Ann', 'surname': 'Adams', 'email': 'ann.adams@example.com'},
+        {'id': 123, 'name': 'Ann', 'surname': 'Adams', 'email': 'ann.adams@example.com', 'role': 'librarian'},
         {'id': 345, 'name': 'Sam', 'surname': 'Adams', 'email': 'sam.adams@example.edu'},
         {'id': 450, 'name': 'Kim', 'surname': 'Smalls', 'email': 'kim.smalls@example.com'},
         {'id': 568, 'name': 'Sam', 'surname': 'Smalls', 'email': 'sam.smalls@example.com'},
@@ -35,7 +39,19 @@ with app.app_context():
         {'id': 813, 'name': 'Marta', 'surname': 'Bondar', 'email': 'marta.bondar@example.net'},
         {'id': 814, 'name': 'Ira', 'surname': 'Shevchenko', 'email': 'ira.shevchenko@example.org'},
     ]
-    db.session.add_all([Reader(**row) for row in readers_data])
+    readers = []
+    for row in readers_data:
+        reader = Reader(
+            id=row['id'],
+            name=row['name'],
+            surname=row['surname'],
+            email=row['email'],
+            role=row.get('role', 'reader'),
+        )
+        reader.set_password(DEFAULT_PASSWORD)
+        readers.append(reader)
+
+    db.session.add_all(readers)
     safe_commit()
 
     books_data = [

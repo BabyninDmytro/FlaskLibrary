@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 
-from flask import Blueprint, jsonify, redirect, request, session as flask_session, url_for
+from flask import Blueprint, jsonify, redirect, request, url_for
 from flask.typing import ResponseReturnValue
 from werkzeug.exceptions import HTTPException
 
@@ -65,32 +65,19 @@ def _bearer_token() -> str | None:
     return token_value
 
 
-def _session_actor() -> ApiActor | AnonymousApiActor:
-    session_user_id = flask_session.get('_user_id')
-    if not isinstance(session_user_id, str) or not session_user_id:
+def _api_actor(*, required: bool = False) -> ApiActor | AnonymousApiActor:
+    bearer_token = _bearer_token()
+    if bearer_token is None:
+        if required:
+            raise AuthenticationRequiredError('Authentication required.')
         return AnonymousApiActor()
 
     try:
-        reader_id = int(session_user_id)
-    except ValueError:
-        return AnonymousApiActor()
-
-    reader = _reader_service().get_reader(reader_id)
-    if reader is None:
-        return AnonymousApiActor()
-
-    return _auth_service().actor_from_reader(reader)
-
-
-def _api_actor(*, required: bool = False) -> ApiActor | AnonymousApiActor:
-    bearer_token = _bearer_token()
-    if bearer_token is not None:
         return _auth_service().authenticate_access_token(bearer_token)
-
-    actor = _session_actor()
-    if required and not actor.is_authenticated:
-        raise AuthenticationRequiredError('Authentication required.')
-    return actor
+    except AuthenticationRequiredError:
+        if required:
+            raise
+        return AnonymousApiActor()
 
 
 def _build_api_response(payload, ttl=60) -> ResponseReturnValue:
@@ -101,7 +88,7 @@ def _build_api_response(payload, ttl=60) -> ResponseReturnValue:
     response.set_etag(etag, weak=False)
     response.cache_control.public = True
     response.cache_control.max_age = ttl
-    response.headers['Vary'] = 'Accept'
+    response.headers['Vary'] = 'Accept, Authorization'
 
     return response.make_conditional(request)
 
@@ -191,7 +178,7 @@ def book_details(book_id) -> ResponseReturnValue:
 
 @bp.route('/api/v1/books/<int:book_id>/reviews', methods=['POST'])
 def review_create(book_id) -> ResponseReturnValue:
-    actor = _api_actor()
+    actor = _api_actor(required=True)
     payload = _json_payload()
     review = _review_service().create_review(
         actor,
@@ -205,7 +192,7 @@ def review_create(book_id) -> ResponseReturnValue:
 
 @bp.route('/api/v1/books/<int:book_id>/annotations', methods=['POST'])
 def annotation_create(book_id) -> ResponseReturnValue:
-    actor = _api_actor()
+    actor = _api_actor(required=True)
     payload = _json_payload()
     annotation = _annotation_service().create_annotation(
         actor,
@@ -240,7 +227,7 @@ def review_details(review_id) -> ResponseReturnValue:
 
 @bp.route('/api/v1/reviews/<int:review_id>', methods=['PATCH'])
 def review_update(review_id) -> ResponseReturnValue:
-    actor = _api_actor()
+    actor = _api_actor(required=True)
     payload = _json_payload()
     review_service = _review_service()
 
@@ -259,7 +246,7 @@ def review_update(review_id) -> ResponseReturnValue:
 
 @bp.route('/api/v1/reviews/<int:review_id>', methods=['DELETE'])
 def review_delete(review_id) -> ResponseReturnValue:
-    actor = _api_actor()
+    actor = _api_actor(required=True)
     _review_service().delete_review(actor, review_id)
     _invalidate_api_cache()
     return ('', 204)
@@ -267,7 +254,7 @@ def review_delete(review_id) -> ResponseReturnValue:
 
 @bp.route('/api/v1/annotations/<int:annotation_id>', methods=['PATCH'])
 def annotation_update(annotation_id) -> ResponseReturnValue:
-    actor = _api_actor()
+    actor = _api_actor(required=True)
     payload = _json_payload()
     annotation_service = _annotation_service()
 
@@ -282,7 +269,7 @@ def annotation_update(annotation_id) -> ResponseReturnValue:
 
 @bp.route('/api/v1/annotations/<int:annotation_id>', methods=['DELETE'])
 def annotation_delete(annotation_id) -> ResponseReturnValue:
-    actor = _api_actor()
+    actor = _api_actor(required=True)
     _annotation_service().delete_annotation(actor, annotation_id)
     _invalidate_api_cache()
     return ('', 204)

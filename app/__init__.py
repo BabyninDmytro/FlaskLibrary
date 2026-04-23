@@ -10,6 +10,7 @@ from flask import Flask, Response, request
 from flask_login import current_user
 from sqlalchemy.exc import OperationalError
 
+from app.db_schema import ensure_database_schema
 from app.extensions import cache, db, login_manager
 
 if TYPE_CHECKING:
@@ -100,6 +101,11 @@ def create_app(test_config: Mapping[str, Any] | None = None) -> Flask:
     app.register_blueprint(web_bp)
     app.register_blueprint(api_auth_bp)
     app.register_blueprint(api_bp)
+
+    with app.app_context():
+        created_tables = ensure_database_schema()
+        if created_tables:
+            logging.info('Created missing tables: %s', ', '.join(created_tables))
 
     @app.after_request
     def add_no_store_headers(response: Response) -> Response:

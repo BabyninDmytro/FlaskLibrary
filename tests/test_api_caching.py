@@ -12,6 +12,20 @@ def login(client, email='test.user@example.com', password='Secret123!'):
     )
 
 
+def api_login(client, email='test.user@example.com', password='Secret123!'):
+    response = client.post(
+        '/api/v1/auth/login',
+        json={'email': email, 'password': password},
+        follow_redirects=False,
+    )
+    assert response.status_code == 200
+    return response.get_json()
+
+
+def api_headers(access_token: str) -> dict[str, str]:
+    return {'Authorization': f'Bearer {access_token}'}
+
+
 def test_api_books_collection_sets_cache_headers_and_etag(client, app):
     with app.app_context():
         db.session.add(Book(title='Cache Me', author_name='A', author_surname='B', month='January', year=2024))
@@ -61,8 +75,7 @@ def test_api_books_collection_uses_server_side_cache_until_invalidation(client, 
 
 
 def test_api_mutation_invalidates_book_details_cache(client, app, user, librarian):
-    login_response = login(client, email=librarian)
-    assert login_response.status_code == 302
+    tokens = api_login(client, email=librarian)
 
     with app.app_context():
         reader = db.session.scalar(select(Reader).filter_by(email=user))
@@ -81,6 +94,7 @@ def test_api_mutation_invalidates_book_details_cache(client, app, user, libraria
 
     patch_response = client.patch(
         f'/api/v1/reviews/{review_id}',
+        headers=api_headers(tokens['access_token']),
         json={'text': 'Updated from cache invalidation test'},
         follow_redirects=False,
     )
