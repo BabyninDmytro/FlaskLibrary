@@ -130,6 +130,3 @@ def load_user(user_id: str) -> Reader | None:
     except OperationalError:
         db.session.rollback()
         return None
-
-
-app: Flask = create_app()
