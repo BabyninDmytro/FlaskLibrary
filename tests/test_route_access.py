@@ -330,6 +330,8 @@ def test_book_read_route_redirects_guest_for_missing_book(client):
 
 
 def test_api_book_data_returns_json_payload(client, app, user):
+    tokens = api_login(client, email=user, password='Secret123!')
+
     with app.app_context():
         reader = db.session.scalar(select(Reader).filter_by(email=user))
         book = Book(
@@ -350,7 +352,11 @@ def test_api_book_data_returns_json_payload(client, app, user):
         db.session.commit()
         book_id = book.id
 
-    response = client.get(f'/api/v1/books/{book_id}', follow_redirects=False)
+    response = client.get(
+        f'/api/v1/books/{book_id}',
+        headers=api_headers(tokens['access_token']),
+        follow_redirects=False,
+    )
 
     assert response.status_code == 200
     assert response.is_json
@@ -371,14 +377,27 @@ def test_api_book_data_returns_json_payload(client, app, user):
 
 
 
-def test_api_book_data_returns_404_for_missing_book(client):
+def test_api_book_data_requires_authentication(client):
     response = client.get('/api/v1/books/999999', follow_redirects=False)
+
+    assert response.status_code == 401
+
+
+def test_api_book_data_returns_404_for_missing_book(client, user):
+    tokens = api_login(client, email=user, password='Secret123!')
+    response = client.get(
+        '/api/v1/books/999999',
+        headers=api_headers(tokens['access_token']),
+        follow_redirects=False,
+    )
 
     assert response.status_code == 404
 
 
 
-def test_api_book_data_legacy_route_redirects(client, app):
+def test_api_book_data_legacy_route_redirects(client, app, user):
+    tokens = api_login(client, email=user, password='Secret123!')
+
     with app.app_context():
         book = Book(
             title='Legacy Data Route Book',
@@ -391,7 +410,11 @@ def test_api_book_data_legacy_route_redirects(client, app):
         db.session.commit()
         book_id = book.id
 
-    response = client.get(f'/api/v1/books/{book_id}/data', follow_redirects=False)
+    response = client.get(
+        f'/api/v1/books/{book_id}/data',
+        headers=api_headers(tokens['access_token']),
+        follow_redirects=False,
+    )
 
     assert response.status_code == 301
     assert response.headers['Location'].endswith(f'/api/v1/books/{book_id}')
@@ -555,7 +578,9 @@ def test_book_read_uses_static_html_content_for_book_15(client, app, user):
     assert b'Back to contents' in response.data
 
 
-def test_api_books_collection_returns_paginated_items(client, app):
+def test_api_books_collection_returns_paginated_items(client, app, user):
+    tokens = api_login(client, email=user, password='Secret123!')
+
     with app.app_context():
         db.session.add_all(
             [
@@ -566,7 +591,11 @@ def test_api_books_collection_returns_paginated_items(client, app):
         )
         db.session.commit()
 
-    response = client.get('/api/v1/books?search=Api&page=1&per_page=2', follow_redirects=False)
+    response = client.get(
+        '/api/v1/books?search=Api&page=1&per_page=2',
+        headers=api_headers(tokens['access_token']),
+        follow_redirects=False,
+    )
 
     assert response.status_code == 200
     assert response.is_json
@@ -579,12 +608,25 @@ def test_api_books_collection_returns_paginated_items(client, app):
 
 
 
+def test_api_books_collection_requires_authentication(client):
+    response = client.get('/api/v1/books?search=Api&page=1&per_page=2', follow_redirects=False)
+
+    assert response.status_code == 401
+
+
+
 def test_api_reader_profile_returns_json(client, app, user):
+    tokens = api_login(client, email=user, password='Secret123!')
+
     with app.app_context():
         reader = db.session.scalar(select(Reader).filter_by(email=user))
         reader_id = reader.id
 
-    response = client.get(f'/api/v1/readers/{reader_id}', follow_redirects=False)
+    response = client.get(
+        f'/api/v1/readers/{reader_id}',
+        headers=api_headers(tokens['access_token']),
+        follow_redirects=False,
+    )
 
     assert response.status_code == 200
     assert response.is_json
@@ -596,6 +638,8 @@ def test_api_reader_profile_returns_json(client, app, user):
 
 
 def test_api_review_details_returns_json(client, app, user):
+    tokens = api_login(client, email=user, password='Secret123!')
+
     with app.app_context():
         reader = db.session.scalar(select(Reader).filter_by(email=user))
         book = Book(title='Review API Book', author_name='R', author_surname='S', month='April', year=2024)
@@ -607,7 +651,11 @@ def test_api_review_details_returns_json(client, app, user):
         db.session.commit()
         review_id = review.id
 
-    response = client.get(f'/api/v1/reviews/{review_id}', follow_redirects=False)
+    response = client.get(
+        f'/api/v1/reviews/{review_id}',
+        headers=api_headers(tokens['access_token']),
+        follow_redirects=False,
+    )
 
     assert response.status_code == 200
     assert response.is_json
@@ -618,15 +666,37 @@ def test_api_review_details_returns_json(client, app, user):
 
 
 
-def test_api_reader_profile_returns_404_for_missing_user(client):
+def test_api_reader_profile_requires_authentication(client):
     response = client.get('/api/v1/readers/999999', follow_redirects=False)
+
+    assert response.status_code == 401
+
+
+def test_api_reader_profile_returns_404_for_missing_user(client, user):
+    tokens = api_login(client, email=user, password='Secret123!')
+    response = client.get(
+        '/api/v1/readers/999999',
+        headers=api_headers(tokens['access_token']),
+        follow_redirects=False,
+    )
 
     assert response.status_code == 404
 
 
 
-def test_api_review_details_returns_404_for_missing_review(client):
+def test_api_review_details_requires_authentication(client):
     response = client.get('/api/v1/reviews/999999', follow_redirects=False)
+
+    assert response.status_code == 401
+
+
+def test_api_review_details_returns_404_for_missing_review(client, user):
+    tokens = api_login(client, email=user, password='Secret123!')
+    response = client.get(
+        '/api/v1/reviews/999999',
+        headers=api_headers(tokens['access_token']),
+        follow_redirects=False,
+    )
 
     assert response.status_code == 404
 
@@ -962,8 +1032,13 @@ def test_api_annotation_delete_allowed_for_librarian(client, app, user, libraria
         assert db.session.scalar(select(Annotation).filter_by(id=annotation_id)) is None
 
 
-def test_api_book_404_uses_json_error_envelope(client):
-    response = client.get('/api/v1/books/999999', follow_redirects=False)
+def test_api_book_404_uses_json_error_envelope(client, user):
+    tokens = api_login(client, email=user, password='Secret123!')
+    response = client.get(
+        '/api/v1/books/999999',
+        headers=api_headers(tokens['access_token']),
+        follow_redirects=False,
+    )
 
     assert response.status_code == 404
     assert response.is_json
@@ -973,8 +1048,13 @@ def test_api_book_404_uses_json_error_envelope(client):
 
 
 
-def test_api_reader_404_uses_json_error_envelope(client):
-    response = client.get('/api/v1/readers/999999', follow_redirects=False)
+def test_api_reader_404_uses_json_error_envelope(client, user):
+    tokens = api_login(client, email=user, password='Secret123!')
+    response = client.get(
+        '/api/v1/readers/999999',
+        headers=api_headers(tokens['access_token']),
+        follow_redirects=False,
+    )
 
     assert response.status_code == 404
     assert response.is_json

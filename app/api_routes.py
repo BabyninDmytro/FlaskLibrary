@@ -86,14 +86,13 @@ def _build_api_response(payload, ttl=60) -> ResponseReturnValue:
 
     response = jsonify(payload)
     response.set_etag(etag, weak=False)
-    response.cache_control.public = True
-    response.cache_control.max_age = ttl
+    response.headers['Cache-Control'] = f'private, max-age={ttl}'
     response.headers['Vary'] = 'Accept, Authorization'
 
     return response.make_conditional(request)
 
 
-def _cached_public_json(cache_key, payload_factory, ttl=60) -> ResponseReturnValue:
+def _cached_api_json(cache_key, payload_factory, ttl=60) -> ResponseReturnValue:
     payload = cache.get(cache_key)
     if payload is None:
         payload = payload_factory()
@@ -129,8 +128,8 @@ def books_collection() -> ResponseReturnValue:
     search_query = request.args.get('search', '').strip()
     page = max(request.args.get('page', 1, type=int), 1)
     per_page = min(max(request.args.get('per_page', 10, type=int), 1), 50)
-    actor = _api_actor()
-    visibility_scope = 'librarian' if can_view_hidden_books(actor) else 'public'
+    actor = _api_actor(required=True)
+    visibility_scope = 'librarian' if can_view_hidden_books(actor) else 'reader'
 
     cache_key = f'api:v1:books:{visibility_scope}:search={search_query}:page={page}:per_page={per_page}'
 
@@ -154,13 +153,13 @@ def books_collection() -> ResponseReturnValue:
             'search': search_query,
         }
 
-    return _cached_public_json(cache_key, payload_factory)
+    return _cached_api_json(cache_key, payload_factory)
 
 
 @bp.route('/api/v1/books/<int:book_id>', methods=['GET'])
 def book_details(book_id) -> ResponseReturnValue:
-    actor = _api_actor()
-    visibility_scope = 'librarian' if can_view_hidden_books(actor) else 'public'
+    actor = _api_actor(required=True)
+    visibility_scope = 'librarian' if can_view_hidden_books(actor) else 'reader'
     cache_key = f'api:v1:books:{book_id}:details:{visibility_scope}'
 
     def payload_factory():
@@ -173,7 +172,7 @@ def book_details(book_id) -> ResponseReturnValue:
         payload['annotations'] = annotations
         return payload
 
-    return _cached_public_json(cache_key, payload_factory)
+    return _cached_api_json(cache_key, payload_factory)
 
 
 @bp.route('/api/v1/books/<int:book_id>/reviews', methods=['POST'])
@@ -205,24 +204,26 @@ def annotation_create(book_id) -> ResponseReturnValue:
 
 @bp.route('/api/v1/readers/<int:user_id>', methods=['GET'])
 def reader_profile(user_id) -> ResponseReturnValue:
+    _api_actor(required=True)
     cache_key = f'api:v1:readers:{user_id}'
 
     def payload_factory():
         reader = _reader_service().require_reader(user_id)
         return serialize_reader(reader)
 
-    return _cached_public_json(cache_key, payload_factory)
+    return _cached_api_json(cache_key, payload_factory)
 
 
 @bp.route('/api/v1/reviews/<int:review_id>', methods=['GET'])
 def review_details(review_id) -> ResponseReturnValue:
+    _api_actor(required=True)
     cache_key = f'api:v1:reviews:{review_id}'
 
     def payload_factory():
         review = _review_service().require_review(review_id)
         return serialize_review(review)
 
-    return _cached_public_json(cache_key, payload_factory)
+    return _cached_api_json(cache_key, payload_factory)
 
 
 @bp.route('/api/v1/reviews/<int:review_id>', methods=['PATCH'])
@@ -277,6 +278,7 @@ def annotation_delete(annotation_id) -> ResponseReturnValue:
 
 @bp.route('/api/v1/books/<int:book_id>/data', methods=['GET'])
 def book_details_legacy(book_id) -> ResponseReturnValue:
+    _api_actor(required=True)
     return redirect(url_for('api.book_details', book_id=book_id), code=301)
 
 

@@ -45,3 +45,19 @@ def test_openapi_documents_bearer_auth_scheme():
     assert 'bearerAuth:' in spec_text
     assert 'scheme: bearer' in spec_text
     assert 'bearerFormat: JWT' in spec_text
+
+
+def test_openapi_documents_auth_for_read_endpoints():
+    spec_text = _read_openapi()
+
+    for path in (
+        '/api/v1/books:',
+        '/api/v1/books/{book_id}:',
+        '/api/v1/reviews/{review_id}:',
+        '/api/v1/readers/{user_id}:',
+    ):
+        block_start = spec_text.index(path)
+        next_path = spec_text.find('\n  /api/', block_start + 1)
+        block = spec_text[block_start:] if next_path == -1 else spec_text[block_start:next_path]
+        assert 'bearerAuth' in block
+        assert "'401':" in block
