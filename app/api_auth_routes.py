@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from flask import Blueprint, jsonify, request
 from flask.typing import ResponseReturnValue
+from marshmallow import Schema, ValidationError as MarshmallowValidationError
 from werkzeug.exceptions import HTTPException
 
+from app.schemas import login_request_schema, normalize_schema_errors, refresh_request_schema
 from app.serializers import serialize_reader
 from app.services.auth_service import ApiActor
-from app.services.exceptions import AuthenticationRequiredError, BadRequestError, ServiceError
+from app.services.exceptions import AuthenticationRequiredError, BadRequestError, ServiceError, ValidationError
 from app.services.factories import build_auth_service
 from app.services.token_service import TokenPair
 
@@ -25,6 +27,14 @@ def _json_payload() -> dict[str, object]:
     if not isinstance(payload, dict):
         raise BadRequestError('Request body must be a JSON object.')
     return dict(payload)
+
+
+def _validated_payload(schema: Schema) -> dict[str, object]:
+    try:
+        loaded = schema.load(_json_payload())
+    except MarshmallowValidationError as error:
+        raise ValidationError('Validation failed.', details=normalize_schema_errors(error.messages)) from error
+    return dict(loaded)
 
 
 def _json_error(status: int, message: str, details: dict[str, object] | None = None) -> ResponseReturnValue:
@@ -75,10 +85,10 @@ def handle_http_exception(error: HTTPException) -> ResponseReturnValue:
 
 @bp.route('/api/v1/auth/login', methods=['POST'])
 def login() -> ResponseReturnValue:
-    payload = _json_payload()
+    payload = _validated_payload(login_request_schema)
     reader, tokens = _auth_service().login(
-        email=payload.get('email', ''),
-        password=payload.get('password', ''),
+        email=payload['email'],
+        password=payload['password'],
         user_agent=request.user_agent.string or None,
         ip_address=request.remote_addr,
     )
@@ -87,9 +97,9 @@ def login() -> ResponseReturnValue:
 
 @bp.route('/api/v1/auth/refresh', methods=['POST'])
 def refresh() -> ResponseReturnValue:
-    payload = _json_payload()
+    payload = _validated_payload(refresh_request_schema)
     reader, tokens = _auth_service().refresh(
-        refresh_token=payload.get('refresh_token', ''),
+        refresh_token=payload['refresh_token'],
         user_agent=request.user_agent.string or None,
         ip_address=request.remote_addr,
     )

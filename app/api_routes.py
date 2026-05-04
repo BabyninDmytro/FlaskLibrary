@@ -5,13 +5,21 @@ import json
 
 from flask import Blueprint, jsonify, redirect, request, url_for
 from flask.typing import ResponseReturnValue
+from marshmallow import Schema, ValidationError as MarshmallowValidationError
 from werkzeug.exceptions import HTTPException
 
 from app.extensions import cache
+from app.schemas import (
+    annotation_request_schema,
+    annotation_update_request_schema,
+    normalize_schema_errors,
+    review_create_request_schema,
+    review_update_request_schema,
+)
 from app.serializers import serialize_annotation, serialize_book, serialize_reader, serialize_review
-from app.services.access_policy import can_view_hidden_books
+from app.services.access_policy import can_create_annotation, can_view_hidden_books
 from app.services.auth_service import AnonymousApiActor, ApiActor
-from app.services.exceptions import AuthenticationRequiredError, BadRequestError, ServiceError
+from app.services.exceptions import AuthenticationRequiredError, BadRequestError, PermissionDeniedError, ServiceError, ValidationError
 from app.services.factories import (
     build_annotation_service,
     build_auth_service,
@@ -51,6 +59,14 @@ def _json_payload() -> dict[str, object]:
     if not isinstance(payload, dict):
         raise BadRequestError('Request body must be a JSON object.')
     return dict(payload)
+
+
+def _validated_payload(schema: Schema) -> dict[str, object]:
+    try:
+        loaded = schema.load(_json_payload())
+    except MarshmallowValidationError as error:
+        raise ValidationError('Validation failed.', details=normalize_schema_errors(error.messages)) from error
+    return dict(loaded)
 
 
 def _bearer_token() -> str | None:
@@ -178,12 +194,12 @@ def book_details(book_id) -> ResponseReturnValue:
 @bp.route('/api/v1/books/<int:book_id>/reviews', methods=['POST'])
 def review_create(book_id) -> ResponseReturnValue:
     actor = _api_actor(required=True)
-    payload = _json_payload()
+    payload = _validated_payload(review_create_request_schema)
     review = _review_service().create_review(
         actor,
         book_id,
-        text=payload.get('text', ''),
-        stars=payload.get('stars'),
+        text=payload['text'],
+        stars=payload['stars'],
     )
     _invalidate_api_cache()
     return jsonify(serialize_review(review)), 201
@@ -192,11 +208,15 @@ def review_create(book_id) -> ResponseReturnValue:
 @bp.route('/api/v1/books/<int:book_id>/annotations', methods=['POST'])
 def annotation_create(book_id) -> ResponseReturnValue:
     actor = _api_actor(required=True)
-    payload = _json_payload()
+    _book_service().get_book_for_actor(book_id, actor)
+    if not can_create_annotation(actor):
+        raise PermissionDeniedError('Only librarians can add annotations.')
+
+    payload = _validated_payload(annotation_request_schema)
     annotation = _annotation_service().create_annotation(
         actor,
         book_id,
-        text=payload.get('text', ''),
+        text=payload['text'],
     )
     _invalidate_api_cache()
     return jsonify(serialize_annotation(annotation)), 201
@@ -229,7 +249,7 @@ def review_details(review_id) -> ResponseReturnValue:
 @bp.route('/api/v1/reviews/<int:review_id>', methods=['PATCH'])
 def review_update(review_id) -> ResponseReturnValue:
     actor = _api_actor(required=True)
-    payload = _json_payload()
+    payload = _validated_payload(review_update_request_schema)
     review_service = _review_service()
 
     if 'text' in payload and 'stars' in payload:
@@ -256,7 +276,7 @@ def review_delete(review_id) -> ResponseReturnValue:
 @bp.route('/api/v1/annotations/<int:annotation_id>', methods=['PATCH'])
 def annotation_update(annotation_id) -> ResponseReturnValue:
     actor = _api_actor(required=True)
-    payload = _json_payload()
+    payload = _validated_payload(annotation_update_request_schema)
     annotation_service = _annotation_service()
 
     if 'text' in payload:

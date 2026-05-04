@@ -49,6 +49,21 @@ def test_api_auth_login_rejects_invalid_credentials(client, user):
     assert response.get_json()['error']['message'] == 'Invalid email or password.'
 
 
+def test_api_auth_login_validates_required_json_fields(client):
+    response = client.post(
+        '/api/v1/auth/login',
+        json={'email': 'not-an-email'},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 422
+    assert response.is_json
+    payload = response.get_json()
+    assert payload['error']['message'] == 'Validation failed.'
+    assert 'email' in payload['error']['details']
+    assert 'password' in payload['error']['details']
+
+
 def test_api_auth_me_returns_current_reader_for_bearer_token(client, user):
     tokens = _api_login(client, email=user)
 
@@ -159,3 +174,26 @@ def test_api_bearer_token_can_create_review_without_session_login(client, app, u
             select(Review).filter_by(book_id=book_id, reviewer_id=reader.id, text='Created via bearer token')
         )
         assert stored is not None
+
+
+def test_api_review_create_validates_json_field_types(client, app, user):
+    tokens = _api_login(client, email=user)
+
+    with app.app_context():
+        book = Book(title='Typed Review Book', author_name='B', author_surname='R', month='April', year=2026)
+        db.session.add(book)
+        db.session.commit()
+        book_id = book.id
+
+    response = client.post(
+        f'/api/v1/books/{book_id}/reviews',
+        headers=_bearer_headers(tokens['access_token']),
+        json={'text': 'Created via bearer token', 'stars': '5'},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 422
+    assert response.is_json
+    payload = response.get_json()
+    assert payload['error']['message'] == 'Validation failed.'
+    assert 'stars' in payload['error']['details']

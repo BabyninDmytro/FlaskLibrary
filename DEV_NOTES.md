@@ -1,5 +1,11 @@
 # Dev Notes
 
+## 2026-05-03
+- Added Marshmallow as the REST API boundary validation/serialization library.
+- Introduced `app/schemas.py` with request schemas for auth, review, and annotation payloads, plus response dump schemas for books, readers, reviews, and annotations.
+- Kept service-layer validation in place as the final business-rule guard; Marshmallow now handles JSON shape, required fields, primitive types, and unknown fields before routes call services.
+- Preserved the existing auth/permission behavior for annotation creation so non-librarian users still receive `403` before request-body validation details.
+
 ## 2026-04-23
 - Added JWT-style API authentication for the REST layer while keeping `Flask-Login` session auth for SSR routes.
 - Introduced `RefreshTokenSession` persistence with refresh rotation and revocation so API sessions can be invalidated independently from browser sessions.
